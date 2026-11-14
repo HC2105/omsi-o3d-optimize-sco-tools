@@ -3,7 +3,7 @@
 A single-file browser tool for **optimizing `.o3d` material slots**, **scanning texture alpha channels**, and **generating `.sco` `[matl_alpha]` blocks** for the OMSI bus simulator.
 Load an individual `.o3d`, a full Sceneryobject folder, or a `model/` batch folder, inspect duplicate materials and transparency percentages, merge redundant slots, and export optimized `.o3d` files or ready-to-paste `.sco` blocks.
 
-**→ [https://hc2105.github.io/omsi-o3d-optimize-sco-tools/](https://www.google.com/search?q=https://hc2105.github.io/omsi-o3d-optimize-sco-tools/)**
+**→ [https://hc2105.github.io/omsi-o3d-optimize-sco-tools/](https://hc2105.github.io/omsi-o3d-optimize-sco-tools/)**
 
 Hosted via GitHub Pages. First visit loads two small CDN libraries (Tailwind CSS, Lucide icons) and then the app runs entirely in your browser — no account, no login, no server upload, no telemetry. All `.o3d` binary parsing, `.tga` / `.dds` decoding, and `.zip` packaging happen locally in memory.
 
