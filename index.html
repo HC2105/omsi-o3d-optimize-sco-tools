@@ -1,0 +1,3411 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMSI O3D Optimize &amp; SCO Tools — V1.01</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            slate: {
+              850: '#141c2b',
+              925: '#0b101b',
+              950: '#070a12'
+            }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background-color: #070a12;
+      color: #e2e8f0;
+      overflow-x: hidden;
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    .checkerboard {
+      background-color: #0f172a;
+      background-image:
+        linear-gradient(45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(-45deg, #1e293b 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1e293b 75%),
+        linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+    }
+    input[type="range"] {
+      accent-color: #f59e0b;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b101b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 select-none">
+
+  <!-- Loading Overlay Modal -->
+  <div id="loadingOverlay" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="w-full max-w-md rounded-2xl bg-slate-925 border border-slate-700/80 shadow-2xl p-6 flex flex-col gap-4">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
+            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <h3 id="loadingTitle" class="text-sm font-semibold text-white">Loading &amp; Processing...</h3>
+          <p id="loadingFileSub" class="text-xs font-mono text-slate-400 truncate mt-0.5">Preparing files...</p>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <div class="w-full h-2.5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden">
+          <div id="loadingProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-150" style="width: 0%"></div>
+        </div>
+        <div class="flex items-center justify-between text-[11px] font-mono text-slate-400">
+          <span id="loadingProgressText">0 / 0 files</span>
+          <span id="loadingProgressPct" class="text-amber-400 font-semibold">0%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top Navigation & Workflow Header (Same brand lockup, title bar & palette as Nightmap Tool) -->
+  <header class="border-b border-slate-800/90 bg-slate-925/95 backdrop-blur sticky top-0 z-[60]">
+    <div class="w-full px-3 sm:px-5 py-2.5 flex items-center justify-between gap-3">
+      <!-- Brand Title + Custom 3D Cube Icon -->
+      <div class="flex items-center gap-2.5">
+        <a href="#" onclick="window.location.reload(); return false;"
+           class="flex items-center gap-2.5 rounded-lg cursor-pointer group"
+           title="Reload the tool and start fresh">
+          <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-900 via-slate-900 to-amber-500/30 border border-amber-400/40 flex items-center justify-center shadow-lg shadow-amber-500/20 transition group-hover:border-amber-400/70 group-hover:shadow-amber-500/30">
+            <svg class="w-5 h-5 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <!-- 3D Isometric Cube -->
+              <path d="M12 9.5 5 5.5 5 14l7 4 7-4V5.5L12 9.5z" />
+              <polyline points="5 5.5 12 9.5 19 5.5" />
+              <line x1="12" y1="9.5" x2="12" y2="18" />
+              <!-- Magic Wand crossing diagonally -->
+              <line x1="22" y1="2" x2="14" y2="10" stroke-width="2.2" />
+              <!-- Sparkles radiating from wand tip -->
+              <path d="M10 2v2.5M8.75 3.25h2.5" stroke-width="1.5" />
+              <path d="M6.5 5.5v2M5.5 6.5h2" stroke-width="1.5" />
+              <circle cx="13" cy="6.5" r="0.75" fill="currentColor" />
+              <circle cx="16.5" cy="3" r="0.75" fill="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-sm sm:text-base font-bold tracking-tight text-white group-hover:text-amber-300 transition-colors">OMSI O3D Optimize &amp; SCO Tools</h1>
+              <span class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">V1.01</span>
+            </div>
+            <p class="text-[11px] text-slate-400 hidden xl:block">O3D Material Optimization, Alpha Detection &amp; SCO Material Block Generator</p>
+          </div>
+        </a>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="flex items-center gap-2">
+        <button id="btnClearWorkspace" type="button" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition" title="Clear all loaded .o3d files and textures">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Clear All</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="w-full max-w-none p-3 sm:p-4 flex-1 flex flex-col gap-3.5 min-h-0">
+
+    <!-- Workflow Mode Selection & Input Container -->
+    <section class="rounded-2xl border border-slate-800 bg-slate-925/90 p-3 sm:p-4 flex flex-col gap-3">
+      <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+        <div>
+          <span class="text-xs uppercase tracking-wider font-semibold text-slate-400">Select Import Workflow Mode:</span>
+          <div class="flex flex-wrap items-center gap-2 mt-1.5">
+            <button id="modeBtnSingle" type="button" class="mode-tab-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-amber-500 text-slate-950 shadow transition flex items-center gap-2">
+              <i data-lucide="box" class="w-4 h-4"></i>
+              <span>1. Individual .o3d</span>
+            </button>
+            <button id="modeBtnSco" type="button" class="mode-tab-btn px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2">
+              <i data-lucide="folder-tree" class="w-4 h-4"></i>
+              <span>2. Sceneryobject Folder Scan (By .sco)</span>
+            </button>
+            <button id="modeBtnFolder" type="button" class="mode-tab-btn px-3.5 py-2 rounded-xl text-xs font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition flex items-center gap-2">
+              <i data-lucide="folders" class="w-4 h-4"></i>
+              <span>3. Model Folder Scan (By .o3d)</span>
+            </button>
+          </div>
+        </div>
+        <div id="modeDescriptionTag" class="text-xs font-mono text-amber-300 bg-amber-500/10 border border-amber-500/25 px-3 py-1.5 rounded-lg">
+          Mode 1: Inspect &amp; edit one individual .o3d file
+        </div>
+      </div>
+
+      <!-- Mode 3 Warning Box (Not intended for Vehicle O3Ds) -->
+      <div id="bannerVehicleWarning" class="hidden rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 flex items-start gap-3">
+        <div class="w-8 h-8 rounded-lg bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-300 shrink-0 mt-0.5">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-400"></i>
+        </div>
+        <div class="text-xs leading-relaxed">
+          <h4 class="font-bold text-rose-200 uppercase tracking-wide">Warning: Not Intended for Vehicle .o3d Models</h4>
+          <p class="text-slate-300 mt-0.5">
+            Model Folder Batch Scan is intended for <strong class="text-white">scenery objects</strong>. Do <strong class="text-rose-300">not</strong> use this batch workflow on vehicle <code class="font-mono text-slate-200">.o3d</code> folders (<code class="font-mono text-slate-200">Vehicles\...\model</code>)—vehicles rely on intentional multi-slot materials for rain glass, interior lightmaps, <code class="font-mono text-slate-200">[matl_envmap]</code> reflections, and <code class="font-mono text-slate-200">[matl_change]</code> scripts that may break visual effects if merged or overridden.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 1 & Step 2 Upload Grid (Adapts to Mode: In Mode 2, Dropzone 1 expands to 12 cols and Dropzone 2 is hidden) -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 pt-1">
+        <div id="dropzoneModel" class="lg:col-span-6 rounded-2xl border border-dashed border-slate-800 bg-slate-925/90 hover:bg-slate-925 hover:border-amber-500/60 transition p-4 flex flex-col justify-between gap-3 cursor-pointer relative group shadow-xl">
+        <input id="inputSingleO3d" type="file" accept=".o3d" class="hidden" />
+        <input id="inputScoFile" type="file" multiple accept=".sco,.cfg,.txt,.o3d" class="hidden" />
+        <input id="inputModelFolder" type="file" webkitdirectory directory multiple class="hidden" />
+
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div id="iconDropzoneModel" class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-lg shadow-amber-500/10">
+              <i data-lucide="box" class="w-5 h-5 text-amber-400"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 id="labelDropzoneTitle" class="text-sm font-semibold text-white">1. Import Individual .o3d File</h2>
+                <span id="badgeModelStatus" class="px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700">Awaiting File</span>
+              </div>
+              <p id="labelDropzoneSub" class="text-xs text-slate-400 mt-0.5">Drop an individual <code class="font-mono text-slate-300">.o3d</code> file here or click to browse</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <span id="btnDropzoneAction" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow transition">
+              Browse .o3d
+            </span>
+            <button id="btnDropzoneFolderAlt" type="button" class="hidden px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+              + .sco Files
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span id="statLabel1" class="text-slate-400 block text-[10px] uppercase tracking-wider">Active .sco / File</span>
+            <span id="statValue1" class="font-mono font-medium text-slate-400 truncate block">None</span>
+          </div>
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span id="statLabel2" class="text-slate-400 block text-[10px] uppercase tracking-wider">Loaded .o3d Models</span>
+            <span id="statValue2" class="font-mono font-medium text-slate-400 truncate block">0 models</span>
+          </div>
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span id="statLabel3" class="text-slate-400 block text-[10px] uppercase tracking-wider">Duplicates in .o3d</span>
+            <span id="statValue3" class="font-mono font-medium text-slate-400 block">0 duplicates</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dropzone 2: Texture Folder / Files (Hidden in Mode 2 because Sceneryobject folder already includes texture/) -->
+      <div id="dropzoneTexture" class="lg:col-span-6 rounded-2xl border border-dashed border-slate-800 bg-slate-925/90 hover:border-amber-500/60 transition p-4 flex flex-col justify-between gap-3 shadow-xl">
+        <input id="inputTextureFolder" type="file" webkitdirectory directory multiple class="hidden" />
+        <input id="inputTextureFiles" type="file" multiple accept=".png,.bmp,.jpg,.jpeg,.tga,.dds,.webp" class="hidden" />
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0 shadow-lg shadow-indigo-500/10">
+              <i data-lucide="image" class="w-5 h-5 text-indigo-400"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-white">2. Texture Folder for Alpha Scan</h2>
+                <span id="badgeFolderStatus" class="px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700">0 files indexed</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Scans <code class="font-mono text-slate-300">.png</code>, <code class="font-mono text-slate-300">.dds</code> (DXT1/3/5), <code class="font-mono text-slate-300">.tga</code>, <code class="font-mono text-slate-300">.bmp</code> &amp; <code class="font-mono text-slate-300">.jpg</code> for transparent pixels</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button id="btnPickFolder" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 transition">
+              Select Folder
+            </button>
+            <button id="btnPickFiles" type="button" class="px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+              + Files
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-xs">
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span class="text-slate-400 block text-[10px] uppercase tracking-wider">Textures Indexed</span>
+            <span id="statFolderCount" class="font-mono font-medium text-slate-400 block">0 textures</span>
+          </div>
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span class="text-slate-400 block text-[10px] uppercase tracking-wider">Alpha 1 / Alpha 2</span>
+            <span id="statTransparentCount" class="font-mono font-medium text-slate-400 block">0 transparent</span>
+          </div>
+          <div class="bg-slate-950/80 rounded-lg px-2.5 py-1.5 border border-slate-800">
+            <span class="text-slate-400 block text-[10px] uppercase tracking-wider">No Alpha (Opaque)</span>
+            <span id="statNoAlphaCount" class="font-mono font-medium text-slate-400 block">0 No Alpha</span>
+          </div>
+        </div>
+      </div>
+
+    
+      </div>
+    </section>
+
+        <!-- Dedicated Folder Batch Optimization Card (Shown in Mode 2 & Mode 3 when folder models are loaded) -->
+    <div id="bannerFolderBatchOpt" class="hidden rounded-2xl border border-indigo-500/40 bg-indigo-950/40 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all">
+      <div class="flex items-start sm:items-center gap-3.5 min-w-0">
+        <div id="iconFolderBatch" class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300 shrink-0 mt-0.5 sm:mt-0 shadow-lg shadow-indigo-500/10">
+          <i data-lucide="archive" class="w-5 h-5 text-indigo-400"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h4 id="titleFolderBatch" class="text-xs sm:text-sm font-bold text-white tracking-tight">
+              Folder Batch Optimization
+            </h4>
+            <span id="badgeFolderBatchStats" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              0 models
+            </span>
+          </div>
+          <p id="descFolderBatch" class="text-xs text-slate-300 mt-1 leading-relaxed">
+            Batch-combine all duplicate material slots across every .o3d in this folder and package them into a .zip matching the original folder structure.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+        <button id="btnBatchOptimizeZip" type="button" class="w-full sm:w-auto cursor-pointer inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-950/40 border border-indigo-500/60 ring-1 ring-indigo-400/30 transition">
+          <i data-lucide="sparkles" class="w-4 h-4 text-amber-300"></i>
+          <span id="labelBatchZip">Batch Fix &amp; Download ZIP</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- LEVEL 1 STEPPER: .SCO FILE SELECTOR (Shown in Mode 2 when Sceneryobject folder has .sco files) -->
+    <div id="containerScoStepper" class="hidden rounded-2xl border border-slate-800 bg-slate-925/90 p-3 sm:p-4 flex flex-col gap-2.5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/15 text-amber-300 border border-amber-500/30">
+            Sceneryobject (.sco)
+          </span>
+          <span id="badgeScoPosition" class="text-xs font-mono text-slate-400">
+            SCO 1 of 1:
+          </span>
+          <span id="badgeActiveScoName" class="text-sm font-mono font-bold text-white">
+            Object.sco
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnPrevSco" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1">
+            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+            Prev .sco
+          </button>
+          <button id="btnNextSco" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1">
+            Next .sco
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+      <div id="stripScoPills" class="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
+        <!-- Populated dynamically with every .sco in the folder -->
+      </div>
+    </div>
+
+    <!-- LEVEL 2 STEPPER: .O3D MESH STEPPER (Shown when selected .sco has multiple .o3d OR in Mode 3 Folder Scan) -->
+    <div id="containerStepper" class="hidden rounded-2xl border border-slate-800 bg-slate-925/90 p-3 sm:p-4 flex flex-col gap-2.5 shadow-xl">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <span id="labelStepperPrefix" class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+            .o3d Mesh Step
+          </span>
+          <span id="badgeStepPosition" class="text-xs font-mono text-slate-400">
+            Mesh 1 of 1:
+          </span>
+          <span id="badgeStepMeshName" class="text-sm font-mono font-bold text-white">
+            Current_Mesh.o3d
+          </span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button id="btnPrevStep" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1">
+            <i data-lucide="chevron-left" class="w-3.5 h-3.5"></i>
+            Previous .o3d
+          </button>
+          <button id="btnNextStep" type="button" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1">
+            Next .o3d
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Step Pills (Click to jump directly to any .o3d) -->
+      <div id="stripStepPills" class="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
+        <!-- Populated dynamically -->
+      </div>
+    </div>
+
+    <!-- Duplicate Alert & Optimization Banner -->
+    <div id="bannerDuplicateAlert" class="hidden rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 flex flex-wrap items-center justify-between gap-3 shadow-xl">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
+          <i data-lucide="alert-triangle" class="w-5 h-5 text-amber-400"></i>
+        </div>
+        <div>
+          <h4 id="bannerDuplicateTitle" class="text-xs sm:text-sm font-semibold text-amber-200">Duplicate Material Slots Detected</h4>
+          <p id="bannerDuplicateDesc" class="text-xs text-slate-300">Combining redundant material slots reduces .o3d file size and eliminates redundant draw calls in OMSI.</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="btnCombineAllBanner" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow transition">
+          <i data-lucide="minimize-2" class="w-3.5 h-3.5"></i>
+          <span id="labelCombineAllBanner">Combine All Duplicates</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar with Category Pills & Combine Actions -->
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-2">
+      <div class="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-slate-925 border border-slate-800 text-xs">
+        <button data-alpha-filter="all" type="button" class="alpha-filter-btn px-3 py-1.5 rounded-lg font-semibold transition bg-amber-500 text-slate-950 shadow">
+          All Mapped (<span id="countFilterAll">0</span>)
+        </button>
+        <button data-alpha-filter="duplicates" type="button" class="alpha-filter-btn px-3 py-1.5 rounded-lg font-medium transition text-amber-300 hover:text-white flex items-center gap-1">
+          <i data-lucide="alert-circle" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>Duplicates (<span id="countFilterDuplicates">0</span>)</span>
+        </button>
+        <button data-alpha-filter="transparent" type="button" class="alpha-filter-btn px-3 py-1.5 rounded-lg font-medium transition text-slate-300 hover:text-white">
+          Alpha 1 &amp; 2 (<span id="countFilterTransparent">0</span>)
+        </button>
+        <button data-alpha-filter="noalpha" type="button" class="alpha-filter-btn px-3 py-1.5 rounded-lg font-medium transition text-slate-300 hover:text-white">
+          No Alpha (<span id="countFilterNoAlpha">0</span>)
+        </button>
+        <button data-alpha-filter="missing" type="button" class="alpha-filter-btn px-3 py-1.5 rounded-lg font-medium transition text-slate-300 hover:text-white">
+          Missing in Folder (<span id="countFilterMissing">0</span>)
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <button id="btnResetAutoAlpha" type="button" class="cursor-pointer px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Revert all manual alpha overrides back to auto-detected values">
+          Reset to Auto Detection
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Workspace: Active Mesh Alpha Channel Scanner + .SCO Generator -->
+    <section class="grid grid-cols-1 lg:grid-cols-12 gap-3.5 flex-1">
+
+      <!-- Left 7 cols: Active Mesh Texture Cards with Integrated Search & Slot/Alphabetical Sort -->
+      <div class="lg:col-span-7 rounded-2xl border border-slate-800 bg-slate-925/90 flex flex-col overflow-hidden shadow-2xl">
+        <div class="px-4 py-3 border-b border-slate-800 flex flex-col gap-3 bg-slate-900/80">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-semibold text-white flex items-center gap-2">
+                <span>Textures in <code id="labelTableO3dName" class="font-mono text-amber-400">No file loaded</code></span>
+              </h3>
+              <p id="labelTableMeshStats" class="text-xs text-slate-400">
+                Search texture names or sort between <strong class="text-slate-200">Slot #</strong> and <strong class="text-slate-200">Alphabetical</strong> order.
+              </p>
+            </div>
+
+            <!-- Model-level Actions: Combine Duplicates & Export Active O3D -->
+            <div class="flex items-center gap-2 flex-wrap">
+              <button id="btnCombineAllToolbar" type="button" disabled class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition opacity-40 cursor-not-allowed" title="Merge all duplicate material slots in this .o3d model">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span id="labelCombineToolbar">Combine Duplicates (0)</span>
+              </button>
+              
+              <button id="btnDownloadOptimizedO3d" type="button" disabled class="cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 transition opacity-40 cursor-not-allowed" title="Export this .o3d file (Locked until duplicate material slots are merged)">
+                <i id="iconDownloadO3d" data-lucide="lock" class="w-3.5 h-3.5 text-amber-400"></i>
+                <span id="labelDownloadO3d">Export Optimized .o3d</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dedicated Search Box & Slot vs Alphabetical Sort Bar right inside "Textures in XXX.o3d" -->
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-800/80">
+            <div class="relative flex-1 min-w-[180px]">
+              <input id="inputSearchTexture" type="text" placeholder="Search texture name in this .o3d..." class="w-full pl-8 pr-7 py-1.5 rounded-lg bg-slate-950 border border-slate-800 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500" />
+              <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2"></i>
+              <button id="btnClearSearch" type="button" class="hidden absolute right-2 top-1.5 text-slate-500 hover:text-slate-200 text-xs font-bold px-1">×</button>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <!-- Quick Toggle Pill for Slot # vs Alphabetical -->
+              <div class="inline-flex p-0.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px]">
+                <button id="btnQuickSortSlot" type="button" class="px-2.5 py-1 rounded-md font-semibold bg-amber-500 text-slate-950 transition">
+                  By Slot #
+                </button>
+                <button id="btnQuickSortAlpha" type="button" class="px-2.5 py-1 rounded-md font-medium text-slate-300 hover:text-white transition">
+                  A → Z
+                </button>
+              </div>
+
+              <!-- Full Sort Dropdown -->
+              <select id="selectTextureSort" aria-label="Sort textures" class="rounded-lg bg-slate-950 border border-slate-800 px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500 cursor-pointer">
+                <option value="slot-asc" selected>Slot # (0 → N)</option>
+                <option value="slot-desc">Slot # (N → 0)</option>
+                <option value="name-asc">Alphabetical (A → Z)</option>
+                <option value="name-desc">Alphabetical (Z → A)</option>
+                <option value="tri-desc">Triangles (High → Low)</option>
+                <option value="dup-first">Duplicates First</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div id="gridAlphaCards" class="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 overflow-y-auto max-h-[580px] custom-scrollbar flex-1">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Right 5 cols: .SCO Material Block Output (Clean [matl] + [matl_alpha] blocks with Copy button) -->
+      <div class="lg:col-span-5 rounded-2xl border border-slate-800 bg-slate-925/90 flex flex-col overflow-hidden shadow-2xl">
+        <div class="px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-900/80">
+          <div>
+            <h3 id="labelScoOutputTitle" class="text-sm font-semibold text-white">OMSI .sco Material Block Output</h3>
+            <p id="labelScoOutputSub" class="text-xs text-slate-400">Clean <code class="font-mono text-slate-300">[matl]</code> &amp; <code class="font-mono text-slate-300">[matl_alpha]</code> blocks ready to copy into your .sco file</p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btnCopySco" type="button" class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow transition">
+              <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+              <span id="labelCopySco">Copy to Clipboard</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Generator Controls (Clean & Minimal) -->
+        <div class="px-4 py-3 bg-slate-950/70 border-b border-slate-800 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label for="selectAlphaMode" class="block text-[11px] font-medium text-slate-400 mb-1">Global Transparent Rule</label>
+            <select id="selectAlphaMode" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
+              <option value="auto" selected>Auto (1 if Cutout % &gt; Half-Trans %, else 2)</option>
+              <option value="1">Force Alpha 1 on Transparent</option>
+              <option value="2">Force Alpha 2 on Transparent</option>
+            </select>
+          </div>
+          <div>
+            <label for="selectMatlIndexMode" class="block text-[11px] font-medium text-slate-400 mb-1">Sub-Material Index Line</label>
+            <select id="selectMatlIndexMode" class="w-full rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
+              <option value="zero" selected>0 (Standard first occurrence)</option>
+              <option value="occurrence">Auto-increment if repeated in .o3d</option>
+              <option value="slot">Use .o3d 0x26 slot index</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Code Output Box -->
+        <div class="p-4 flex-1 flex flex-col gap-2">
+          <div class="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+            <span id="labelOutputScope">Active .sco snippet:</span>
+            <span id="statScoBlocksCount">0 [matl] blocks</span>
+          </div>
+          <textarea id="textareaScoOutput" readonly class="w-full flex-1 min-h-[380px] rounded-xl bg-slate-950 border border-slate-800 p-3.5 font-mono text-xs text-amber-300 leading-relaxed focus:outline-none focus:border-amber-500 resize-y custom-scrollbar"></textarea>
+        </div>
+      </div>
+
+    </section>
+
+  
+    <!-- Command Logfile Section (Matching OMSI Nightmap Tool) -->
+    <section class="pb-1">
+      <div class="bg-slate-925 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+        <div class="px-4 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-xs">
+          <div class="flex items-center gap-2 font-mono font-semibold text-amber-400">
+            <i data-lucide="terminal" class="w-3.5 h-3.5"></i>
+            <span>Logfile</span>
+          </div>
+          <button id="btnClearLog" type="button" class="cursor-pointer text-[11px] font-mono text-slate-400 hover:text-white px-2.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700 transition">Clear Log</button>
+        </div>
+        <div id="commandLogContainer" class="h-[105px] overflow-y-auto px-4 py-1.5 font-mono text-[11px] leading-[21px] bg-slate-950 text-slate-300 space-y-0 custom-scrollbar">
+          <!-- Dynamically populated command logs -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer (Exact same style & author credits as OMSI Nightmap Tool) -->
+  <footer class="border-t border-slate-800/90 bg-slate-925 py-3 px-4 text-center text-xs mt-auto">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-center gap-2">
+      <div class="font-medium text-slate-300">
+        OMSI O3D Optimize &amp; SCO Tools <strong class="text-amber-300">V1.01</strong> Released by <span class="text-amber-300">HC2105 @</span> <a href="https://www.facebook.com/TJ9385omsistudio" target="_blank" class="text-amber-300 hover:text-amber-400 underline">TJ x HC Studio</a> 2026
+      </div>
+      <span class="text-slate-500 hidden sm:inline">•</span>
+      <div class="flex items-center gap-1.5 flex-wrap justify-center text-slate-400">
+        <span>Coded with <strong class="text-slate-300">Gemini</strong></span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Toast Notification -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 hidden">
+    <div class="px-4 py-2.5 rounded-xl bg-slate-900 border border-amber-500/40 shadow-xl flex items-center gap-2.5 text-xs font-medium text-slate-100">
+      <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+      <span id="toastMessage">Action completed</span>
+    </div>
+  </div>
+
+
+  <!-- Application Script -->
+  <script>
+    // =========================================================================
+    // 1. WINDOWS-1252 (CP1252) & MULTI-ENCODING TEXT DECODER
+    // =========================================================================
+    const CP1252_EXTRA = {
+      0x80: 0x20AC, 0x82: 0x201A, 0x83: 0x0192, 0x84: 0x201E, 0x85: 0x2026,
+      0x86: 0x2020, 0x87: 0x2021, 0x88: 0x02C6, 0x89: 0x2030, 0x8A: 0x0160,
+      0x8B: 0x2039, 0x8C: 0x0152, 0x8E: 0x017D, 0x91: 0x2018, 0x92: 0x2019,
+      0x93: 0x201C, 0x94: 0x201D, 0x95: 0x2022, 0x96: 0x2013, 0x97: 0x2014,
+      0x98: 0x02DC, 0x99: 0x2122, 0x9A: 0x0161, 0x9B: 0x203A, 0x9C: 0x0153,
+      0x9E: 0x017E, 0x9F: 0x0178
+    };
+    const UNICODE_TO_CP1252 = {};
+    for (const [byteVal, uniVal] of Object.entries(CP1252_EXTRA)) {
+      UNICODE_TO_CP1252[uniVal] = Number(byteVal);
+    }
+
+    function decodeCp1252(uint8Slice) {
+      let out = '';
+      for (let i = 0; i < uint8Slice.length; i++) {
+        const b = uint8Slice[i];
+        if (b === 0) break;
+        if (b >= 0x80 && b <= 0x9F && CP1252_EXTRA[b]) {
+          out += String.fromCharCode(CP1252_EXTRA[b]);
+        } else {
+          out += String.fromCharCode(b);
+        }
+      }
+      return out;
+    }
+
+    function encodeCp1252(str) {
+      const clean = String(str || '').slice(0, 254);
+      const bytes = new Uint8Array(clean.length);
+      for (let i = 0; i < clean.length; i++) {
+        const code = clean.charCodeAt(i);
+        if (code < 0x80 || (code >= 0xA0 && code <= 0xFF)) {
+          bytes[i] = code;
+        } else if (UNICODE_TO_CP1252[code] !== undefined) {
+          bytes[i] = UNICODE_TO_CP1252[code];
+        } else {
+          bytes[i] = 0x3F;
+        }
+      }
+      return bytes;
+    }
+
+    function decodeAnyText(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      if (bytes.length >= 2 && bytes[0] === 0xFF && bytes[1] === 0xFE) {
+        return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+      }
+      if (bytes.length >= 2 && bytes[0] === 0xFE && bytes[1] === 0xFF) {
+        return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+      }
+      if (bytes.length >= 3 && bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+        return new TextDecoder('utf-8').decode(bytes.subarray(3));
+      }
+      try {
+        return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        return decodeCp1252(bytes);
+      }
+    }
+
+    // =========================================================================
+    // 2. BINARY O3D PARSER & RE-SERIALIZER (MATCHING space928/o3dconvert.py)
+    // =========================================================================
+    
+    // =========================================================================
+    // STANDALONE PURE-JAVASCRIPT ZIP ARCHIVE GENERATOR (Zero Dependencies)
+    // =========================================================================
+    const CRC_TABLE = new Uint32Array(256);
+    for (let i = 0; i < 256; i++) {
+      let c = i;
+      for (let k = 0; k < 8; k++) {
+        c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+      }
+      CRC_TABLE[i] = c >>> 0;
+    }
+
+    function crc32(bytes) {
+      let c = 0xFFFFFFFF;
+      for (let i = 0; i < bytes.length; i++) {
+        c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+      }
+      return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function createZipArchive(files) {
+      const localHeaders = [];
+      const centralHeaders = [];
+      let offset = 0;
+
+      const now = new Date();
+      const dosTime = ((now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1)) & 0xFFFF;
+      const dosDate = (((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate()) & 0xFFFF;
+
+      for (const file of files) {
+        const cleanPath = file.path.split('\\').join('/');
+        const nameBytes = new TextEncoder().encode(cleanPath);
+        const dataBytes = file.data;
+        const fileCrc = crc32(dataBytes);
+        const size = dataBytes.length;
+
+        // Local file header (30 bytes + name + data)
+        const lh = new Uint8Array(30 + nameBytes.length + size);
+        const lv = new DataView(lh.buffer);
+        lv.setUint32(0, 0x04034B50, true);
+        lv.setUint16(4, 20, true);
+        lv.setUint16(6, 0x0800, true);
+        lv.setUint16(8, 0, true);
+        lv.setUint16(10, dosTime, true);
+        lv.setUint16(12, dosDate, true);
+        lv.setUint32(14, fileCrc, true);
+        lv.setUint32(18, size, true);
+        lv.setUint32(22, size, true);
+        lv.setUint16(26, nameBytes.length, true);
+        lv.setUint16(28, 0, true);
+        lh.set(nameBytes, 30);
+        lh.set(dataBytes, 30 + nameBytes.length);
+        localHeaders.push(lh);
+
+        // Central directory header (46 bytes + name)
+        const cd = new Uint8Array(46 + nameBytes.length);
+        const cv = new DataView(cd.buffer);
+        cv.setUint32(0, 0x02014B50, true);
+        cv.setUint16(4, 20, true);
+        cv.setUint16(6, 20, true);
+        cv.setUint16(8, 0x0800, true);
+        cv.setUint16(10, 0, true);
+        cv.setUint16(12, dosTime, true);
+        cv.setUint16(14, dosDate, true);
+        cv.setUint32(16, fileCrc, true);
+        cv.setUint32(20, size, true);
+        cv.setUint32(24, size, true);
+        cv.setUint16(28, nameBytes.length, true);
+        cv.setUint16(30, 0, true);
+        cv.setUint16(32, 0, true);
+        cv.setUint16(34, 0, true);
+        cv.setUint16(36, 0, true);
+        cv.setUint32(38, 0, true);
+        cv.setUint32(42, offset, true);
+        cd.set(nameBytes, 46);
+        centralHeaders.push(cd);
+
+        offset += lh.length;
+      }
+
+      const centralOffset = offset;
+      let centralSize = 0;
+      for (const cd of centralHeaders) centralSize += cd.length;
+
+      // End of central directory record (22 bytes)
+      const eocd = new Uint8Array(22);
+      const ev = new DataView(eocd.buffer);
+      ev.setUint32(0, 0x06054B50, true);
+      ev.setUint16(4, 0, true);
+      ev.setUint16(6, 0, true);
+      ev.setUint16(8, files.length, true);
+      ev.setUint16(10, files.length, true);
+      ev.setUint32(12, centralSize, true);
+      ev.setUint32(16, centralOffset, true);
+      ev.setUint16(20, 0, true);
+
+      const totalLength = centralOffset + centralSize + 22;
+      const zipBuffer = new Uint8Array(totalLength);
+      let pos = 0;
+      for (const lh of localHeaders) {
+        zipBuffer.set(lh, pos);
+        pos += lh.length;
+      }
+      for (const cd of centralHeaders) {
+        zipBuffer.set(cd, pos);
+        pos += cd.length;
+      }
+      zipBuffer.set(eocd, pos);
+
+      return zipBuffer;
+    }
+
+    function parseO3dBinary(arrayBuffer, fileName = 'Model.o3d', relativePath = '') {
+      const bytes = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
+      if (bytes.length < 4) {
+        throw new Error('File is too small to be a valid OMSI .o3d file.');
+      }
+
+      const b0 = view.getUint8(0);
+      const b1 = view.getUint8(1);
+      const version = view.getUint8(2);
+      let off = 3;
+      let lHeader = false;
+      let encrypted = false;
+      let optionsByte = 0;
+      let encryptionKey = 0xffffffff;
+
+      if (b0 === 0x84 && b1 === 0x19) {
+        if (version > 3 && off + 5 <= bytes.length) {
+          optionsByte = view.getUint8(off);
+          encryptionKey = view.getUint32(off + 1, true);
+          if (encryptionKey !== 0xffffffff) {
+            encrypted = true;
+          }
+          off += 5;
+          lHeader = true;
+        }
+      } else {
+        throw new Error(
+          `Unsupported .o3d magic bytes (found 0x${b0.toString(16)}, 0x${b1.toString(16)}; expected 0x84, 0x19).`
+        );
+      }
+
+      const longTriangleIndices = (optionsByte & 1) === 1;
+      const altEncryptionSeed = (optionsByte & 2) === 2;
+      let vertexCount = 0;
+      let rawVertexSection = null;
+      const triangles = [];
+      const materials = [];
+      const rawTrailingSections = [];
+
+      while (off < bytes.length) {
+        const sectionTag = view.getUint8(off);
+        const sectionStart = off;
+        off += 1;
+
+        if (sectionTag === 0x17) {
+          const count = lHeader ? view.getUint32(off, true) : view.getUint16(off, true);
+          off += lHeader ? 4 : 2;
+          vertexCount = count;
+          off = Math.min(bytes.length, off + count * 32);
+          rawVertexSection = bytes.slice(sectionStart, off);
+        } else if (sectionTag === 0x49) {
+          const count = lHeader ? view.getUint32(off, true) : view.getUint16(off, true);
+          off += lHeader ? 4 : 2;
+          for (let t = 0; t < count; t++) {
+            if (longTriangleIndices) {
+              if (off + 14 > bytes.length) break;
+              const v0 = view.getUint32(off, true);
+              const v1 = view.getUint32(off + 4, true);
+              const v2 = view.getUint32(off + 8, true);
+              const matIndex = view.getUint16(off + 12, true);
+              off += 14;
+              triangles.push({ v0, v1, v2, matIndex });
+            } else {
+              if (off + 8 > bytes.length) break;
+              const v0 = view.getUint16(off, true);
+              const v1 = view.getUint16(off + 2, true);
+              const v2 = view.getUint16(off + 4, true);
+              const matIndex = view.getUint16(off + 6, true);
+              off += 8;
+              triangles.push({ v0, v1, v2, matIndex });
+            }
+          }
+        } else if (sectionTag === 0x26) {
+          const count = view.getUint16(off, true);
+          off += 2;
+          for (let m = 0; m < count; m++) {
+            if (off + 45 > bytes.length) break;
+            const floats = [];
+            for (let f = 0; f < 11; f++) {
+              floats.push(view.getFloat32(off + f * 4, true));
+            }
+            const strLen = view.getUint8(off + 44);
+            off += 45;
+            const strBytes = bytes.slice(off, off + strLen);
+            const textureName = decodeCp1252(strBytes);
+            off += strLen;
+
+            materials.push({
+              slotIdx: m,
+              diffuse: floats.slice(0, 4),
+              specular: floats.slice(4, 7),
+              emission: floats.slice(7, 10),
+              specPower: floats[10],
+              textureName: textureName,
+              customAlphaMode: null
+            });
+          }
+        } else if (sectionTag === 0x54) {
+          const count = lHeader ? view.getUint32(off, true) : view.getUint16(off, true);
+          off += lHeader ? 4 : 2;
+          for (let b = 0; b < count; b++) {
+            if (off >= bytes.length) break;
+            const nameLen = view.getUint8(off);
+            off += 1 + nameLen;
+            if (off + 2 > bytes.length) break;
+            const nWeights = view.getUint16(off, true);
+            off += 2 + nWeights * 6;
+          }
+          off = Math.min(bytes.length, off);
+          rawTrailingSections.push(bytes.slice(sectionStart, off));
+        } else if (sectionTag === 0x79) {
+          off = Math.min(bytes.length, off + 64);
+          rawTrailingSections.push(bytes.slice(sectionStart, off));
+        } else {
+          rawTrailingSections.push(bytes.slice(sectionStart));
+          break;
+        }
+      }
+
+      return {
+        fileName,
+        relativePath: relativePath || fileName,
+        originalByteLength: bytes.length,
+        version,
+        lHeader,
+        encrypted,
+        optionsByte,
+        encryptionKey,
+        longTriangleIndices,
+        altEncryptionSeed,
+        vertexCount,
+        rawVertexSection,
+        triangles,
+        materials,
+        rawTrailingSections,
+        combinedSlotsCount: 0,
+        savedBytesCount: 0
+      };
+    }
+
+    function exportO3dBinary(o3dState) {
+      const headerSize = o3dState.version > 3 ? 8 : 3;
+      const vertBytes = o3dState.rawVertexSection || new Uint8Array([0x17, 0, 0]);
+
+      const triHeaderBytes = 1 + (o3dState.lHeader ? 4 : 2);
+      const triStride = o3dState.longTriangleIndices ? 14 : 8;
+      const triTotalBytes = triHeaderBytes + o3dState.triangles.length * triStride;
+
+      const encodedMatNames = o3dState.materials.map(m => encodeCp1252(m.textureName));
+      let matTotalBytes = 0;
+      if (o3dState.materials.length > 0) {
+        matTotalBytes = 1 + 2;
+        for (const nameBytes of encodedMatNames) {
+          matTotalBytes += 44 + 1 + nameBytes.length;
+        }
+      }
+
+      let trailingBytesLen = 0;
+      for (const chunk of o3dState.rawTrailingSections) {
+        trailingBytesLen += chunk.length;
+      }
+
+      const totalSize = headerSize + vertBytes.length + triTotalBytes + matTotalBytes + trailingBytesLen;
+      const outBuffer = new ArrayBuffer(totalSize);
+      const outBytes = new Uint8Array(outBuffer);
+      const view = new DataView(outBuffer);
+
+      let off = 0;
+      view.setUint8(off++, 0x84);
+      view.setUint8(off++, 0x19);
+      view.setUint8(off++, o3dState.version);
+      if (o3dState.version > 3) {
+        view.setUint8(off++, o3dState.optionsByte);
+        view.setUint32(off, o3dState.encryptionKey, true);
+        off += 4;
+      }
+
+      outBytes.set(vertBytes, off);
+      off += vertBytes.length;
+
+      view.setUint8(off++, 0x49);
+      if (o3dState.lHeader) {
+        view.setUint32(off, o3dState.triangles.length, true);
+        off += 4;
+      } else {
+        view.setUint16(off, o3dState.triangles.length, true);
+        off += 2;
+      }
+      for (const t of o3dState.triangles) {
+        if (o3dState.longTriangleIndices) {
+          view.setUint32(off, t.v0, true);
+          view.setUint32(off + 4, t.v1, true);
+          view.setUint32(off + 8, t.v2, true);
+          view.setUint16(off + 12, t.matIndex, true);
+          off += 14;
+        } else {
+          view.setUint16(off, t.v0, true);
+          view.setUint16(off + 2, t.v1, true);
+          view.setUint16(off + 4, t.v2, true);
+          view.setUint16(off + 6, t.matIndex, true);
+          off += 8;
+        }
+      }
+
+      if (o3dState.materials.length > 0) {
+        view.setUint8(off++, 0x26);
+        view.setUint16(off, o3dState.materials.length, true);
+        off += 2;
+        for (let i = 0; i < o3dState.materials.length; i++) {
+          const m = o3dState.materials[i];
+          const nameBytes = encodedMatNames[i];
+          const floats = [
+            m.diffuse[0], m.diffuse[1], m.diffuse[2], m.diffuse[3],
+            m.specular[0], m.specular[1], m.specular[2],
+            m.emission[0], m.emission[1], m.emission[2],
+            m.specPower
+          ];
+          for (let f = 0; f < 11; f++) {
+            view.setFloat32(off + f * 4, floats[f], true);
+          }
+          view.setUint8(off + 44, nameBytes.length);
+          off += 45;
+          outBytes.set(nameBytes, off);
+          off += nameBytes.length;
+        }
+      }
+
+      for (const chunk of o3dState.rawTrailingSections) {
+        outBytes.set(chunk, off);
+        off += chunk.length;
+      }
+
+      return outBuffer;
+    }
+
+    // =========================================================================
+    // 3. TEXTURE DECODERS (.PNG/.BMP/.JPG + PURE-JS .TGA & .DDS DXT1/3/5/RGBA)
+    // =========================================================================
+    function analyzeRgbaPixels(rgbaData, width, height) {
+      const totalPixels = width * height;
+      let zeroAlphaPixels = 0;
+      let semiAlphaPixels = 0;
+      let minAlpha = 255;
+
+      for (let i = 3; i < rgbaData.length; i += 4) {
+        const a = rgbaData[i];
+        if (a < minAlpha) minAlpha = a;
+        if (a === 0) {
+          zeroAlphaPixels++;
+        } else if (a < 255) {
+          semiAlphaPixels++;
+        }
+      }
+
+      const transparentPixels = zeroAlphaPixels + semiAlphaPixels;
+      const zeroAlphaPctNum = totalPixels > 0 ? (zeroAlphaPixels / totalPixels) * 100 : 0;
+      const semiAlphaPctNum = totalPixels > 0 ? (semiAlphaPixels / totalPixels) * 100 : 0;
+      const hasTransparency = transparentPixels > 0;
+
+      let alphaType = 'no-alpha';
+      let recommendedScoAlpha = 0;
+      if (hasTransparency) {
+        if (semiAlphaPixels === 0) {
+          alphaType = 'cutout';
+          recommendedScoAlpha = 1;
+        } else if (zeroAlphaPixels === 0) {
+          alphaType = 'half-transparent';
+          recommendedScoAlpha = 2;
+        } else if (zeroAlphaPixels > semiAlphaPixels) {
+          alphaType = 'cutout-dominant';
+          recommendedScoAlpha = 1;
+        } else {
+          alphaType = 'half-dominant';
+          recommendedScoAlpha = 2;
+        }
+      }
+
+      return {
+        width,
+        height,
+        totalPixels,
+        transparentPixels,
+        zeroAlphaPixels,
+        semiAlphaPixels,
+        transparentPct: totalPixels > 0 ? ((transparentPixels / totalPixels) * 100).toFixed(1) : '0.0',
+        zeroAlphaPct: zeroAlphaPctNum.toFixed(1),
+        semiAlphaPct: semiAlphaPctNum.toFixed(1),
+        minAlpha,
+        hasTransparency,
+        alphaType,
+        recommendedScoAlpha
+      };
+    }
+
+    function rgbaToDataUrl(rgbaData, width, height) {
+      const c = document.createElement('canvas');
+      c.width = Math.min(width, 256);
+      c.height = Math.min(height, 256);
+      const ctx = c.getContext('2d');
+
+      const srcCanvas = document.createElement('canvas');
+      srcCanvas.width = width;
+      srcCanvas.height = height;
+      const srcCtx = srcCanvas.getContext('2d');
+      const imgData = new ImageData(new Uint8ClampedArray(rgbaData), width, height);
+      srcCtx.putImageData(imgData, 0, 0);
+
+      ctx.drawImage(srcCanvas, 0, 0, c.width, c.height);
+      return c.toDataURL('image/png');
+    }
+
+    function decodeTgaBuffer(arrayBuffer) {
+      const bytes = new Uint8Array(arrayBuffer);
+      const view = new DataView(arrayBuffer);
+      if (bytes.length < 18) throw new Error('Invalid TGA header');
+      const idLen = bytes[0];
+      const imageType = bytes[2];
+      const width = view.getUint16(12, true);
+      const height = view.getUint16(14, true);
+      const bpp = bytes[16];
+      const descriptor = bytes[17];
+      const topToBottom = (descriptor & 0x20) !== 0;
+      const bytesPerPixel = bpp >> 3;
+
+      let offset = 18 + idLen;
+      const pixelCount = width * height;
+      const rawPixels = new Uint8Array(pixelCount * 4);
+
+      function readPixel(dstIdx) {
+        if (bytesPerPixel === 4) {
+          rawPixels[dstIdx] = bytes[offset + 2];
+          rawPixels[dstIdx + 1] = bytes[offset + 1];
+          rawPixels[dstIdx + 2] = bytes[offset];
+          rawPixels[dstIdx + 3] = bytes[offset + 3];
+        } else if (bytesPerPixel === 3) {
+          rawPixels[dstIdx] = bytes[offset + 2];
+          rawPixels[dstIdx + 1] = bytes[offset + 1];
+          rawPixels[dstIdx + 2] = bytes[offset];
+          rawPixels[dstIdx + 3] = 255;
+        } else {
+          const g = bytes[offset];
+          rawPixels[dstIdx] = g;
+          rawPixels[dstIdx + 1] = g;
+          rawPixels[dstIdx + 2] = g;
+          rawPixels[dstIdx + 3] = 255;
+        }
+        offset += bytesPerPixel;
+      }
+
+      if (imageType === 2 || imageType === 3) {
+        for (let i = 0; i < pixelCount && offset + bytesPerPixel <= bytes.length; i++) {
+          readPixel(i * 4);
+        }
+      } else if (imageType === 10 || imageType === 11) {
+        let p = 0;
+        while (p < pixelCount && offset < bytes.length) {
+          const header = bytes[offset++];
+          const count = (header & 0x7f) + 1;
+          if (header & 0x80) {
+            const baseIdx = p * 4;
+            readPixel(baseIdx);
+            for (let i = 1; i < count && p + i < pixelCount; i++) {
+              const dst = (p + i) * 4;
+              rawPixels[dst] = rawPixels[baseIdx];
+              rawPixels[dst + 1] = rawPixels[baseIdx + 1];
+              rawPixels[dst + 2] = rawPixels[baseIdx + 2];
+              rawPixels[dst + 3] = rawPixels[baseIdx + 3];
+            }
+            p += count;
+          } else {
+            for (let i = 0; i < count && p < pixelCount; i++, p++) {
+              readPixel(p * 4);
+            }
+          }
+        }
+      } else {
+        throw new Error('Unsupported TGA image type ' + imageType);
+      }
+
+      const outRgba = new Uint8Array(pixelCount * 4);
+      for (let y = 0; y < height; y++) {
+        const srcY = topToBottom ? y : (height - 1 - y);
+        outRgba.set(
+          rawPixels.subarray(srcY * width * 4, (srcY + 1) * width * 4),
+          y * width * 4
+        );
+      }
+      return { width, height, rgba: outRgba };
+    }
+
+    function decodeDdsBuffer(arrayBuffer) {
+      const view = new DataView(arrayBuffer);
+      const bytes = new Uint8Array(arrayBuffer);
+      if (bytes.length < 128 || view.getUint32(0, true) !== 0x20534444) {
+        throw new Error('Invalid DDS magic header');
+      }
+      const height = view.getUint32(12, true);
+      const width = view.getUint32(16, true);
+      const pfFlags = view.getUint32(80, true);
+      const fourCC = view.getUint32(84, true);
+      const rgbBitCount = view.getUint32(88, true);
+
+      const rgba = new Uint8Array(width * height * 4);
+      let offset = 128;
+      if (fourCC === 0x30315844) offset += 20;
+
+      function unpack565(c) {
+        const r = ((c >> 11) & 0x1f) * 255 / 31;
+        const g = ((c >> 5) & 0x3f) * 255 / 63;
+        const b = (c & 0x1f) * 255 / 31;
+        return [r | 0, g | 0, b | 0];
+      }
+
+      if (fourCC === 0x31545844 || fourCC === 0x33545844 || fourCC === 0x35545844) {
+        const blocksX = Math.max(1, Math.ceil(width / 4));
+        const blocksY = Math.max(1, Math.ceil(height / 4));
+
+        for (let by = 0; by < blocksY; by++) {
+          for (let bx = 0; bx < blocksX; bx++) {
+            const alphas = new Uint8Array(16);
+            alphas.fill(255);
+
+            if (fourCC === 0x33545844) {
+              for (let i = 0; i < 8; i++) {
+                const byteVal = bytes[offset + i];
+                alphas[i * 2] = (byteVal & 0x0f) * 17;
+                alphas[i * 2 + 1] = ((byteVal >> 4) & 0x0f) * 17;
+              }
+              offset += 8;
+            } else if (fourCC === 0x35545844) {
+              const a0 = bytes[offset];
+              const a1 = bytes[offset + 1];
+              const lut = new Uint8Array(8);
+              lut[0] = a0;
+              lut[1] = a1;
+              if (a0 > a1) {
+                for (let j = 1; j <= 6; j++) lut[j + 1] = (((7 - j) * a0 + j * a1) / 7) | 0;
+              } else {
+                for (let j = 1; j <= 4; j++) lut[j + 1] = (((5 - j) * a0 + j * a1) / 5) | 0;
+                lut[6] = 0;
+                lut[7] = 255;
+              }
+              let bitPos = 0;
+              for (let p = 0; p < 16; p++) {
+                const byteIdx = offset + 2 + (bitPos >> 3);
+                const shift = bitPos & 7;
+                let code = (bytes[byteIdx] >> shift) & 0x07;
+                if (shift > 5) {
+                  code |= (bytes[byteIdx + 1] << (8 - shift)) & 0x07;
+                }
+                alphas[p] = lut[code];
+                bitPos += 3;
+              }
+              offset += 8;
+            }
+
+            const c0 = view.getUint16(offset, true);
+            const c1 = view.getUint16(offset + 2, true);
+            const bits = view.getUint32(offset + 4, true);
+            offset += 8;
+
+            const rgb0 = unpack565(c0);
+            const rgb1 = unpack565(c1);
+            const palette = [
+              [rgb0[0], rgb0[1], rgb0[2], 255],
+              [rgb1[0], rgb1[1], rgb1[2], 255],
+              [0, 0, 0, 255],
+              [0, 0, 0, 255]
+            ];
+
+            if (fourCC === 0x31545844 && c0 <= c1) {
+              palette[2] = [((rgb0[0] + rgb1[0]) >> 1), ((rgb0[1] + rgb1[1]) >> 1), ((rgb0[2] + rgb1[2]) >> 1), 255];
+              palette[3] = [0, 0, 0, 0];
+            } else {
+              palette[2] = [((2 * rgb0[0] + rgb1[0]) / 3) | 0, ((2 * rgb0[1] + rgb1[1]) / 3) | 0, ((2 * rgb0[2] + rgb1[2]) / 3) | 0, 255];
+              palette[3] = [((rgb0[0] + 2 * rgb1[0]) / 3) | 0, ((rgb0[1] + 2 * rgb1[1]) / 3) | 0, ((rgb0[2] + 2 * rgb1[2]) / 3) | 0, 255];
+            }
+
+            for (let py = 0; py < 4; py++) {
+              for (let px = 0; px < 4; px++) {
+                const x = bx * 4 + px;
+                const y = by * 4 + py;
+                if (x < width && y < height) {
+                  const pIdx = py * 4 + px;
+                  const code = (bits >> (pIdx * 2)) & 0x03;
+                  const dst = (y * width + x) * 4;
+                  rgba[dst] = palette[code][0];
+                  rgba[dst + 1] = palette[code][1];
+                  rgba[dst + 2] = palette[code][2];
+                  rgba[dst + 3] = fourCC === 0x31545844 ? palette[code][3] : alphas[pIdx];
+                }
+              }
+            }
+          }
+        }
+      } else {
+        const bpp = Math.max(1, rgbBitCount >> 3);
+        const pixelCount = width * height;
+        for (let i = 0; i < pixelCount && offset + bpp <= bytes.length; i++) {
+          const dst = i * 4;
+          if (bpp === 4) {
+            rgba[dst] = bytes[offset + 2];
+            rgba[dst + 1] = bytes[offset + 1];
+            rgba[dst + 2] = bytes[offset];
+            rgba[dst + 3] = bytes[offset + 3];
+          } else if (bpp === 3) {
+            rgba[dst] = bytes[offset + 2];
+            rgba[dst + 1] = bytes[offset + 1];
+            rgba[dst + 2] = bytes[offset];
+            rgba[dst + 3] = 255;
+          } else {
+            const val = bytes[offset];
+            const isAlphaOnly = (pfFlags & 0x02) !== 0;
+            rgba[dst] = isAlphaOnly ? 255 : val;
+            rgba[dst + 1] = isAlphaOnly ? 255 : val;
+            rgba[dst + 2] = isAlphaOnly ? 255 : val;
+            rgba[dst + 3] = val;
+          }
+          offset += bpp;
+        }
+      }
+
+      return { width, height, rgba };
+    }
+
+    async function decodeTextureFile(file) {
+      const name = file.name;
+      const ext = name.split('.').pop().toLowerCase();
+      const buffer = await file.arrayBuffer();
+
+      if (ext === 'tga') {
+        const { width, height, rgba } = decodeTgaBuffer(buffer);
+        const stats = analyzeRgbaPixels(rgba, width, height);
+        const previewUrl = rgbaToDataUrl(rgba, width, height);
+        return { name, ext, ...stats, previewUrl };
+      }
+      if (ext === 'dds') {
+        const { width, height, rgba } = decodeDdsBuffer(buffer);
+        const stats = analyzeRgbaPixels(rgba, width, height);
+        const previewUrl = rgbaToDataUrl(rgba, width, height);
+        return { name, ext, ...stats, previewUrl };
+      }
+
+      return new Promise((resolve, reject) => {
+        const blob = new Blob([buffer]);
+        const url = URL.createObjectURL(blob);
+        const img = new Image();
+        img.onload = () => {
+          const w = img.naturalWidth || img.width || 64;
+          const h = img.naturalHeight || img.height || 64;
+          const c = document.createElement('canvas');
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          const rgba = ctx.getImageData(0, 0, w, h).data;
+          const stats = analyzeRgbaPixels(rgba, w, h);
+          const previewUrl = rgbaToDataUrl(rgba, w, h);
+          URL.revokeObjectURL(url);
+          resolve({ name, ext, ...stats, previewUrl });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error('Failed to decode image ' + name));
+        };
+        img.src = url;
+      });
+    }
+
+    // =========================================================================
+    // 4. APPLICATION STATE & LOADING OVERLAY
+    // =========================================================================
+    let appState = {
+      mode: 'single', // 'single' | 'sco' | 'folder'
+      scoGroups: [],
+      activeScoIndex: 0,
+      o3dList: [],
+      activeO3dIndex: 0,
+      scoFileName: '',
+      scoMeshList: [],
+      textureFolderMap: new Map(),
+      alphaFilter: 'all',
+      textureSort: 'slot-asc',
+      searchQuery: ''
+    };
+
+    function showLoadingModal(title, currentFile, currentIndex, totalCount) {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      document.getElementById('loadingTitle').textContent = title;
+      document.getElementById('loadingFileSub').textContent = currentFile || 'Processing...';
+      const pct = totalCount > 0 ? Math.min(100, Math.round((currentIndex / totalCount) * 100)) : 100;
+      document.getElementById('loadingProgressBar').style.width = `${pct}%`;
+      document.getElementById('loadingProgressText').textContent = `${currentIndex} / ${totalCount} files`;
+      document.getElementById('loadingProgressPct').textContent = `${pct}%`;
+    }
+
+    function hideLoadingModal() {
+      const overlay = document.getElementById('loadingOverlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    // =========================================================================
+    // 5. CORE COMPUTATIONS (.O3D AUDIT, DUPLICATE COMBINING, .SCO GENERATORS)
+    // =========================================================================
+    function getEffectiveAlphaMode(m, globalRule) {
+      if (m.customAlphaMode !== null) {
+        return m.customAlphaMode;
+      }
+      if (!m.folderTex || !m.folderTex.hasTransparency) {
+        return 0;
+      }
+      if (globalRule === '1') return 1;
+      if (globalRule === '2') return 2;
+      return m.folderTex.recommendedScoAlpha;
+    }
+
+    function computeMappedTexturesForO3d(o3d) {
+      if (!o3d) return [];
+
+      const globalRule = document.getElementById('selectAlphaMode').value;
+      const triCountsBySlot = new Array(o3d.materials.length).fill(0);
+      for (const t of o3d.triangles) {
+        if (t.matIndex >= 0 && t.matIndex < triCountsBySlot.length) {
+          triCountsBySlot[t.matIndex]++;
+        }
+      }
+
+      const slotsByLowerKey = new Map();
+      o3d.materials.forEach((m, idx) => {
+        const cleanBaseName = (m.textureName || '').trim().split(/[\\/]/).pop();
+        const lowerKey = cleanBaseName.toLowerCase();
+        if (!lowerKey) return;
+        if (!slotsByLowerKey.has(lowerKey)) {
+          slotsByLowerKey.set(lowerKey, []);
+        }
+        slotsByLowerKey.get(lowerKey).push(idx);
+      });
+
+      const nameOccurrenceCounter = new Map();
+
+      return o3d.materials
+        .filter(m => m.textureName && m.textureName.trim().length > 0)
+        .map((m) => {
+          const cleanBaseName = m.textureName.trim().split(/[\\/]/).pop();
+          const lowerKey = cleanBaseName.toLowerCase();
+
+          const occIdx = nameOccurrenceCounter.get(lowerKey) || 0;
+          nameOccurrenceCounter.set(lowerKey, occIdx + 1);
+
+          const groupSlots = slotsByLowerKey.get(lowerKey) || [m.slotIdx];
+          const isDuplicate = groupSlots.length > 1;
+
+          const folderTex = lowerKey ? appState.textureFolderMap.get(lowerKey) : null;
+          const effectiveMode = getEffectiveAlphaMode({ ...m, folderTex }, globalRule);
+
+          return {
+            ...m,
+            cleanBaseName,
+            lowerKey,
+            occurrenceIndex: occIdx,
+            triCount: triCountsBySlot[m.slotIdx] || 0,
+            isDuplicate,
+            duplicateTotalSlots: groupSlots.length,
+            duplicateOccurrenceNum: occIdx + 1,
+            duplicateSlotsList: groupSlots,
+            folderTex,
+            effectiveMode
+          };
+        });
+    }
+
+    function getActiveO3dList() {
+      if (appState.mode === 'sco' && appState.scoGroups.length > 0) {
+        const grp = appState.scoGroups[appState.activeScoIndex] || appState.scoGroups[0];
+        return grp ? grp.o3dList : [];
+      }
+      return appState.o3dList;
+    }
+
+    function getActiveO3d() {
+      const list = getActiveO3dList();
+      if (list.length === 0) return null;
+      if (appState.activeO3dIndex < 0 || appState.activeO3dIndex >= list.length) {
+        appState.activeO3dIndex = 0;
+      }
+      return list[appState.activeO3dIndex];
+    }
+
+    function combineDuplicateMaterialsInO3d(o3d, targetLowerKey = null) {
+      if (!o3d || o3d.materials.length === 0) return 0;
+
+      const firstNewSlotByKey = new Map();
+      const oldToNewSlot = new Map();
+      const keptMaterials = [];
+      let mergedSlotsCount = 0;
+      let bytesSaved = 0;
+
+      const keyCounts = new Map();
+      o3d.materials.forEach((m) => {
+        const key = (m.textureName || '').trim().split(/[\\/]/).pop().toLowerCase();
+        keyCounts.set(key, (keyCounts.get(key) || 0) + 1);
+      });
+
+      o3d.materials.forEach((m, oldIdx) => {
+        const cleanBase = (m.textureName || '').trim().split(/[\\/]/).pop();
+        const key = cleanBase.toLowerCase();
+        const shouldCombineThisKey = key && (keyCounts.get(key) > 1) && (targetLowerKey === null || targetLowerKey === key);
+
+        if (shouldCombineThisKey && firstNewSlotByKey.has(key)) {
+          const primaryNewSlot = firstNewSlotByKey.get(key);
+          oldToNewSlot.set(oldIdx, primaryNewSlot);
+          mergedSlotsCount++;
+          bytesSaved += 44 + 1 + encodeCp1252(m.textureName).length;
+        } else {
+          const newSlotIdx = keptMaterials.length;
+          oldToNewSlot.set(oldIdx, newSlotIdx);
+          if (shouldCombineThisKey) {
+            firstNewSlotByKey.set(key, newSlotIdx);
+          }
+          keptMaterials.push({
+            ...m,
+            slotIdx: newSlotIdx
+          });
+        }
+      });
+
+      if (mergedSlotsCount > 0) {
+        o3d.triangles = o3d.triangles.map(t => ({
+          ...t,
+          matIndex: oldToNewSlot.get(t.matIndex) ?? 0
+        }));
+        o3d.materials = keptMaterials;
+        o3d.combinedSlotsCount = (o3d.combinedSlotsCount || 0) + mergedSlotsCount;
+        o3d.savedBytesCount = (o3d.savedBytesCount || 0) + bytesSaved;
+      }
+      return mergedSlotsCount;
+    }
+
+    function buildCleanMatlBlocks(mappedList, indexMode) {
+      const blocks = [];
+      let matlCount = 0;
+
+      for (const m of mappedList) {
+        if (m.effectiveMode !== 1 && m.effectiveMode !== 2) continue;
+
+        let matIdxVal = 0;
+        if (indexMode === 'occurrence') {
+          matIdxVal = m.occurrenceIndex;
+        } else if (indexMode === 'slot') {
+          matIdxVal = m.slotIdx;
+        }
+
+        const lines = [
+          '[matl]',
+          m.textureName,
+          String(matIdxVal),
+          '[matl_alpha]',
+          String(m.effectiveMode)
+        ];
+        blocks.push(lines.join('\n'));
+        matlCount++;
+      }
+
+      return {
+        text: blocks.join('\n\n'),
+        count: matlCount
+      };
+    }
+
+    function buildActiveScoParagraphs() {
+      const indexMode = document.getElementById('selectMatlIndexMode').value;
+      const list = getActiveO3dList();
+      const allBlocks = [];
+      let totalBlocks = 0;
+
+      for (const o3d of list) {
+        const mappedList = computeMappedTexturesForO3d(o3d);
+        const res = buildCleanMatlBlocks(mappedList, indexMode);
+        if (res.count > 0 && res.text) {
+          allBlocks.push(res.text);
+          totalBlocks += res.count;
+        }
+      }
+
+      return {
+        text: allBlocks.join('\n\n'),
+        count: totalBlocks
+      };
+    }
+
+    function parseScoMeshLines(scoText) {
+      const lines = scoText.split(/\r?\n/);
+      const meshes = [];
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.startsWith("'") || line.startsWith("//")) continue;
+        const inlineCommentIdx = line.search(/[']|(\/\/)/);
+        if (inlineCommentIdx !== -1) {
+          line = line.substring(0, inlineCommentIdx).trim();
+        }
+
+        if (line.toLowerCase() === '[mesh]') {
+          let j = i + 1;
+          while (j < lines.length) {
+            let next = lines[j].trim();
+            if (next && !next.startsWith("'") && !next.startsWith("//")) {
+              const inlineIdx = next.search(/[']|(\/\/)/);
+              if (inlineIdx !== -1) next = next.substring(0, inlineIdx).trim();
+              if (next && !next.startsWith('[')) {
+                meshes.push(next);
+              }
+              break;
+            }
+            j++;
+          }
+        }
+      }
+      return meshes;
+    }
+
+    // =========================================================================
+    // 6. UI RENDERING & SORTING
+    // =========================================================================
+    function updateSortButtonsUI() {
+      const btnSlot = document.getElementById('btnQuickSortSlot');
+      const btnAlpha = document.getElementById('btnQuickSortAlpha');
+      const selSort = document.getElementById('selectTextureSort');
+      selSort.value = appState.textureSort;
+
+      if (appState.textureSort.startsWith('slot')) {
+        btnSlot.className = 'px-2.5 py-1 rounded-md font-semibold bg-amber-500 text-slate-950 transition';
+        btnAlpha.className = 'px-2.5 py-1 rounded-md font-medium text-slate-300 hover:text-white transition';
+      } else if (appState.textureSort.startsWith('name')) {
+        btnAlpha.className = 'px-2.5 py-1 rounded-md font-semibold bg-amber-500 text-slate-950 transition';
+        btnSlot.className = 'px-2.5 py-1 rounded-md font-medium text-slate-300 hover:text-white transition';
+      } else {
+        btnSlot.className = 'px-2.5 py-1 rounded-md font-medium text-slate-300 hover:text-white transition';
+        btnAlpha.className = 'px-2.5 py-1 rounded-md font-medium text-slate-300 hover:text-white transition';
+      }
+    }
+
+    
+    // Texture Preview Modal functions
+    function openTextureModal(key, slotIdx) {
+      const tex = appState.textureFolderMap.get(key);
+      if (!tex || !tex.previewUrl) return;
+
+      const modal = document.getElementById('modalTexturePreview');
+      const img = document.getElementById('modalTextureImg');
+      const title = document.getElementById('modalTextureTitle');
+      const meta = document.getElementById('modalTextureMeta');
+      const stats = document.getElementById('modalTextureAlphaStats');
+      const badge = document.getElementById('modalTextureStatusBadge');
+      const btnDownload = document.getElementById('btnModalDownloadTexture');
+
+      title.textContent = tex.name;
+      meta.textContent = `${tex.width} × ${tex.height} px • ${(tex.ext || '').toUpperCase()} • RGBA Pixel Buffer`;
+      img.src = tex.previewUrl;
+      btnDownload.href = tex.previewUrl;
+      btnDownload.download = `${tex.name}.png`;
+
+      stats.textContent = `Cutout (A=0): ${tex.zeroAlphaPct}% • Semi-transparent (0<A<255): ${tex.semiAlphaPct}% • Opaque: ${tex.opaquePct}%`;
+
+      const activeO3d = getActiveO3d();
+      let modeText = 'No Alpha Detected';
+      let modeClass = 'bg-slate-800 text-slate-300 border-slate-700';
+
+      let effMode = tex.suggestedAlphaMode;
+      if (activeO3d && slotIdx !== undefined && activeO3d.materials[slotIdx]) {
+        effMode = activeO3d.materials[slotIdx].customAlphaMode !== null 
+          ? activeO3d.materials[slotIdx].customAlphaMode 
+          : tex.suggestedAlphaMode;
+      }
+
+      if (effMode === 1) {
+        modeText = '[matl_alpha] 1 (Cutout Alpha)';
+        modeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+      } else if (effMode === 2) {
+        modeText = '[matl_alpha] 2 (Half-Transparency)';
+        modeClass = 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40';
+      }
+
+      badge.textContent = modeText;
+      badge.className = `px-2.5 py-0.5 rounded-md text-[11px] font-semibold border ${modeClass}`;
+
+      modal.classList.remove('hidden');
+      logCommand(`Opened texture preview: "${tex.name}" (${tex.width}×${tex.height}px, ${(tex.ext||'').toUpperCase()}, Cutout: ${tex.zeroAlphaPct}%, Half-trans: ${tex.semiAlphaPct}%).`);
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeTextureModal() {
+      const modal = document.getElementById('modalTexturePreview');
+      if (modal && !modal.classList.contains('hidden')) {
+        modal.classList.add('hidden');
+        logCommand('Closed texture preview lightbox.');
+      }
+    }
+
+    
+    // Export Locked Modal functions
+    
+    // =========================================================================
+    // COMMAND LOGFILE (Matching OMSI Nightmap Tool)
+    // =========================================================================
+    function logCommand(actionText) {
+      const now = new Date();
+      const ts = now.toTimeString().split(' ')[0];
+      if (!appState.commandLogs) appState.commandLogs = [];
+      appState.commandLogs.push({ time: ts, text: actionText });
+      if (appState.commandLogs.length > 250) appState.commandLogs.shift();
+      renderCommandLog();
+    }
+
+    function renderCommandLog() {
+      const container = document.getElementById('commandLogContainer');
+      if (!container) return;
+      container.innerHTML = '';
+      (appState.commandLogs || []).forEach((entry, i) => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 border-b border-slate-900/60 h-[21px] truncate';
+        row.innerHTML = `<span class="text-slate-500 shrink-0 font-mono">[${entry.time}]</span> <span class="text-amber-400/90 shrink-0 font-semibold font-mono">#${i + 1}</span> <span class="text-slate-200 truncate">${escapeHtml(entry.text)}</span>`;
+        container.appendChild(row);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearCommandLog() {
+      appState.commandLogs = [];
+      logCommand('Logfile cleared.');
+    }
+
+    
+    // Batch Optimize All .o3d Models & Download as ZIP
+    async function batchFixAndDownloadZip() {
+      let allModels = [];
+      if (appState.mode === 'sco') {
+        const seenMap = new Map();
+        appState.scoGroups.forEach(grp => {
+          grp.o3dList.forEach(m => {
+            if (!seenMap.has(m.fileName.toLowerCase())) {
+              seenMap.set(m.fileName.toLowerCase(), m);
+            }
+          });
+        });
+        allModels = Array.from(seenMap.values());
+      } else if (appState.mode === 'folder') {
+        allModels = appState.o3dList || [];
+      }
+
+      if (allModels.length === 0) {
+        showToast('No .o3d models loaded to batch optimize.');
+        return;
+      }
+
+      showLoadingModal('Batch Optimizing .o3d Models...', 'Scanning duplicates...', 0, allModels.length);
+      await new Promise(r => setTimeout(r, 40));
+
+      let totalMergedSlots = 0;
+      let fixedModelsCount = 0;
+      const filesToZip = [];
+
+      for (let i = 0; i < allModels.length; i++) {
+        const model = allModels[i];
+        showLoadingModal('Batch Optimizing .o3d Models...', `Checking & fixing ${model.fileName}...`, i + 1, allModels.length);
+        if (allModels.length <= 15 || i % 2 === 0) await new Promise(r => setTimeout(r, 10));
+
+        // Check if model has duplicates to merge
+        const mapped = computeMappedTexturesForO3d(model);
+        const hasDups = mapped.some(m => m.isDuplicate);
+        if (hasDups) {
+          const merged = combineDuplicateMaterialsInO3d(model, null);
+          if (merged > 0) {
+            totalMergedSlots += merged;
+            fixedModelsCount++;
+          }
+        }
+
+        // Export binary buffer for this model
+        const outBuffer = exportO3dBinary(model);
+        const zipPath = model.relativePath ? model.relativePath.split('\\').join('/') : `model/${model.fileName}`;
+        filesToZip.push({
+          path: zipPath,
+          data: new Uint8Array(outBuffer)
+        });
+      }
+
+      showLoadingModal('Packaging ZIP Archive...', 'Compressing files into archive...', allModels.length, allModels.length);
+      await new Promise(r => setTimeout(r, 60));
+
+      const zipBytes = createZipArchive(filesToZip);
+      hideLoadingModal();
+
+      const blob = new Blob([zipBytes], { type: 'application/zip' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const archiveName = appState.mode === 'sco' && appState.scoGroups.length > 0
+        ? `${appState.scoGroups[0].scoName.replace(/\.sco$/i, '')}_Optimized_Models.zip`
+        : 'OMSI_Optimized_Models.zip';
+      a.download = archiveName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showToast(`Batch optimized: merged ${totalMergedSlots} duplicate slot(s) across ${fixedModelsCount} model(s). Downloaded ${archiveName}!`);
+      logCommand(`Batch Optimization complete: merged ${totalMergedSlots} duplicate slot(s) across ${fixedModelsCount} of ${allModels.length} model(s). Exported ZIP archive: ${archiveName} (${(zipBytes.length / 1024).toFixed(1)} KB, ${filesToZip.length} files).`);
+
+      renderAll();
+    }
+
+    function openExportLockedModal() {
+      const activeO3d = getActiveO3d();
+      if (!activeO3d) return;
+
+      const mappedList = computeMappedTexturesForO3d(activeO3d);
+      const duplicateCards = mappedList.filter(m => m.isDuplicate);
+      const uniqueDupKeys = new Set(duplicateCards.map(m => m.lowerKey));
+      const redundantSlotsCount = duplicateCards.length - uniqueDupKeys.size;
+
+      const modal = document.getElementById('modalExportLocked');
+      const title = document.getElementById('modalExportLockedTitle');
+      const whyText = document.getElementById('modalExportLockedWhy');
+      const howText = document.getElementById('modalExportLockedHow');
+      const btnCombine = document.getElementById('btnModalCombineAndUnlock');
+      const labelCombine = document.getElementById('labelModalCombineAction');
+      const fileCode = document.getElementById('modalExportLockedFileCode');
+
+      if (fileCode) fileCode.textContent = activeO3d.fileName;
+
+      if (redundantSlotsCount > 0) {
+        title.textContent = `Export Locked: ${redundantSlotsCount} Duplicate Slot${redundantSlotsCount === 1 ? '' : 's'} Not Merged`;
+        whyText.innerHTML = `You have not merged duplicate material slots in <code class="font-mono text-amber-300">${escapeHtml(activeO3d.fileName)}</code> yet. Exporting an unfixed file would produce an identical copy of what you already have on disk.`;
+        howText.innerHTML = `We detected <strong>${duplicateCards.length} material slots</strong> sharing <strong>${uniqueDupKeys.size} duplicate texture(s)</strong> (${redundantSlotsCount} redundant slots). Click <strong>"Combine Duplicates &amp; Unlock"</strong> below to merge them into single slots and cut OMSI draw calls. Once merged, the export button unlocks immediately!`;
+        btnCombine.classList.remove('hidden');
+        labelCombine.textContent = `Combine ${redundantSlotsCount} Duplicate${redundantSlotsCount === 1 ? '' : 's'} & Unlock`;
+      } else {
+        title.textContent = `Export Locked: 0 Duplicates Detected`;
+        whyText.innerHTML = `<code class="font-mono text-amber-300">${escapeHtml(activeO3d.fileName)}</code> already has <strong>0 duplicate material slots</strong> and is already optimal!`;
+        howText.innerHTML = `Because there are no redundant texture slots to combine, re-exporting this <code class="font-mono text-slate-200">.o3d</code> file is unnecessary as it would be identical to your existing file. You can still copy the clean <code class="font-mono text-slate-200">[matl_alpha]</code> blocks from the right panel into your <code class="font-mono text-slate-200">.sco</code> file.`;
+        btnCombine.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+      logCommand(`Export locked for ${activeO3d.fileName}: ${redundantSlotsCount > 0 ? redundantSlotsCount + ' duplicate slots not merged yet.' : '0 duplicates detected (already optimal).'}`);
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeExportLockedModal() {
+      const modal = document.getElementById('modalExportLocked');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderAll() {
+      updateSortButtonsUI();
+
+      const activeList = getActiveO3dList();
+      const activeO3d = getActiveO3d();
+      const mappedList = activeO3d ? computeMappedTexturesForO3d(activeO3d) : [];
+
+      const badgeModel = document.getElementById('badgeModelStatus');
+      const badgeFolder = document.getElementById('badgeFolderStatus');
+      const btnExportO3d = document.getElementById('btnDownloadOptimizedO3d');
+      const btnCombineToolbar = document.getElementById('btnCombineAllToolbar');
+      const bannerDuplicate = document.getElementById('bannerDuplicateAlert');
+      const containerScoStepper = document.getElementById('containerScoStepper');
+      const containerStepper = document.getElementById('containerStepper');
+      const gridAlpha = document.getElementById('gridAlphaCards');
+      const dropzoneTexture = document.getElementById('dropzoneTexture');
+      const dropzoneModel = document.getElementById('dropzoneModel');
+
+      // Mode 2 specific UI layout: hide texture dropzone because Sceneryobject folder already provides textures
+      if (appState.mode === 'sco') {
+        dropzoneTexture.classList.add('hidden');
+        dropzoneModel.classList.remove('lg:col-span-6');
+        dropzoneModel.classList.add('lg:col-span-12');
+      } else {
+        dropzoneTexture.classList.remove('hidden');
+        dropzoneModel.classList.remove('lg:col-span-12');
+        dropzoneModel.classList.add('lg:col-span-6');
+      }
+
+      const btnClearSearch = document.getElementById('btnClearSearch');
+      if (appState.searchQuery.length > 0) {
+        btnClearSearch.classList.remove('hidden');
+      } else {
+        btnClearSearch.classList.add('hidden');
+      }
+
+      badgeFolder.textContent = `${appState.textureFolderMap.size} file${appState.textureFolderMap.size === 1 ? '' : 's'} indexed`;
+      if (appState.textureFolderMap.size > 0) {
+        badgeFolder.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30';
+      } else {
+        badgeFolder.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700';
+      }
+      document.getElementById('statFolderCount').textContent = `${appState.textureFolderMap.size} textures`;
+
+      // LEVEL 1 STEPPER: Mode 2 .SCO Selector
+      if (appState.mode === 'sco' && appState.scoGroups.length > 0) {
+        containerScoStepper.classList.remove('hidden');
+        const activeScoGrp = appState.scoGroups[appState.activeScoIndex] || appState.scoGroups[0];
+        document.getElementById('badgeScoPosition').textContent = `SCO ${appState.activeScoIndex + 1} of ${appState.scoGroups.length}:`;
+        document.getElementById('badgeActiveScoName').textContent = activeScoGrp.scoName;
+
+        const stripScoPills = document.getElementById('stripScoPills');
+        stripScoPills.innerHTML = '';
+        appState.scoGroups.forEach((grp, idx) => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          const isActive = idx === appState.activeScoIndex;
+          pill.className = `px-3 py-1.5 rounded-lg text-xs font-mono shrink-0 transition flex items-center gap-1.5 ${
+            isActive
+              ? 'bg-amber-500 text-slate-950 font-bold shadow'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+          }`;
+          pill.innerHTML = `<span>#${idx + 1}</span> <span>${escapeHtml(grp.scoName)}</span> <span class="text-[10px] opacity-75">(${grp.o3dList.length} o3d)</span>`;
+          pill.addEventListener('click', () => {
+            appState.activeScoIndex = idx;
+            appState.activeO3dIndex = 0;
+            renderAll();
+          });
+          stripScoPills.appendChild(pill);
+        });
+
+        document.getElementById('btnPrevSco').disabled = appState.activeScoIndex === 0;
+        document.getElementById('btnNextSco').disabled = appState.activeScoIndex >= appState.scoGroups.length - 1;
+      } else {
+        containerScoStepper.classList.add('hidden');
+      }
+
+      // LEVEL 2 STEPPER: .o3d Mesh Stepper
+      const showMeshStepper = (appState.mode === 'sco' && activeList.length > 1) || (appState.mode === 'folder' && activeList.length > 0);
+      if (showMeshStepper) {
+        containerStepper.classList.remove('hidden');
+        document.getElementById('labelStepperPrefix').textContent = appState.mode === 'sco'
+          ? `.o3d in ${appState.scoGroups[appState.activeScoIndex]?.scoName || '.sco'}`
+          : 'Folder .o3d Step';
+        document.getElementById('badgeStepPosition').textContent = `Mesh ${appState.activeO3dIndex + 1} of ${activeList.length}:`;
+        document.getElementById('badgeStepMeshName').textContent = activeO3d ? activeO3d.fileName : '';
+
+        const stripPills = document.getElementById('stripStepPills');
+        stripPills.innerHTML = '';
+        activeList.forEach((mesh, idx) => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          const isActive = idx === appState.activeO3dIndex;
+          pill.className = `px-3 py-1 rounded-lg text-xs font-mono shrink-0 transition flex items-center gap-1.5 ${
+            isActive
+              ? 'bg-amber-500 text-slate-950 font-bold shadow'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+          }`;
+          pill.innerHTML = `<span>#${idx + 1}</span> <span>${escapeHtml(mesh.fileName)}</span>`;
+          pill.addEventListener('click', () => {
+            appState.activeO3dIndex = idx;
+            renderAll();
+          });
+          stripPills.appendChild(pill);
+        });
+
+        document.getElementById('btnPrevStep').disabled = appState.activeO3dIndex === 0;
+        document.getElementById('btnNextStep').disabled = appState.activeO3dIndex >= activeList.length - 1;
+      } else {
+        containerStepper.classList.add('hidden');
+      }
+
+            // FOLDER BATCH OPTIMIZATION BANNER (Mode 2 & Mode 3)
+      const bannerBatch = document.getElementById('bannerFolderBatchOpt');
+      const isBatchMode = appState.mode === 'sco' || appState.mode === 'folder';
+
+      let allFolderModels = [];
+      if (appState.mode === 'sco') {
+        const seenMap = new Map();
+        appState.scoGroups.forEach(grp => {
+          grp.o3dList.forEach(m => {
+            if (!seenMap.has(m.fileName.toLowerCase())) {
+              seenMap.set(m.fileName.toLowerCase(), m);
+            }
+          });
+        });
+        allFolderModels = Array.from(seenMap.values());
+      } else if (appState.mode === 'folder') {
+        allFolderModels = appState.o3dList || [];
+      }
+
+      if (isBatchMode && allFolderModels.length > 0) {
+        bannerBatch.classList.remove('hidden');
+
+        let modelsWithDupsCount = 0;
+        let totalRedundantSlots = 0;
+        let fixedModelsCount = 0;
+
+        allFolderModels.forEach(m => {
+          if ((m.combinedSlotsCount || 0) > 0) {
+            fixedModelsCount++;
+          }
+          const mList = computeMappedTexturesForO3d(m);
+          const dups = mList.filter(card => card.isDuplicate);
+          const uKeys = new Set(dups.map(card => card.lowerKey));
+          const redCount = dups.length - uKeys.size;
+          if (redCount > 0) {
+            modelsWithDupsCount++;
+            totalRedundantSlots += redCount;
+          }
+        });
+
+        const titleBatch = document.getElementById('titleFolderBatch');
+        const badgeBatch = document.getElementById('badgeFolderBatchStats');
+        const descBatch = document.getElementById('descFolderBatch');
+        const labelZip = document.getElementById('labelBatchZip');
+
+        if (totalRedundantSlots > 0) {
+          bannerBatch.className = 'rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `Folder Optimization Available (${modelsWithDupsCount} of ${allFolderModels.length} models have duplicates)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          badgeBatch.textContent = `${totalRedundantSlots} redundant duplicate slot(s) can be merged`;
+          descBatch.innerHTML = `Found <strong>${totalRedundantSlots} duplicate material slots</strong> across ${modelsWithDupsCount} model(s) in this folder. Click below to merge all duplicates across all models and export a complete <code class="font-mono text-slate-200">.zip</code> replacing all <code class="font-mono text-slate-200">.o3d</code> files in their original folders in one go.`;
+          labelZip.textContent = `Batch Fix All Duplicates & Download ZIP (${allFolderModels.length} models)`;
+        } else if (fixedModelsCount > 0) {
+          bannerBatch.className = 'rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `✓ All Models in Folder Optimized (${fixedModelsCount} fixed)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          badgeBatch.textContent = `All models clean`;
+          descBatch.innerHTML = `All duplicate material slots have been merged! You can download the complete optimized <code class="font-mono text-slate-200">.zip</code> archive anytime to overwrite your <code class="font-mono text-slate-200">model/</code> folder.`;
+          labelZip.textContent = `Download Optimized ZIP (${allFolderModels.length} models)`;
+        } else {
+          bannerBatch.className = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `Folder Scan: All ${allFolderModels.length} Models Clean (0 duplicates)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700';
+          badgeBatch.textContent = `0 duplicates`;
+          descBatch.innerHTML = `None of the <code class="font-mono text-slate-200">.o3d</code> models in this folder contain duplicate material slots. No batch fixes are necessary!`;
+          labelZip.textContent = `Download All as ZIP (${allFolderModels.length} models)`;
+        }
+      } else {
+        if (bannerBatch) bannerBatch.classList.add('hidden');
+      }
+
+if (!activeO3d) {
+        const activeScoGrp = appState.mode === 'sco' ? appState.scoGroups[appState.activeScoIndex] : null;
+        badgeModel.textContent = activeScoGrp ? `${activeScoGrp.referencedMeshes.length} [mesh] in .sco` : 'Awaiting File';
+        badgeModel.className = activeScoGrp
+          ? 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30'
+          : 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700';
+
+        document.getElementById('statValue1').textContent = activeScoGrp ? activeScoGrp.scoName : 'None';
+        document.getElementById('statValue2').textContent = activeScoGrp ? `0 / ${activeScoGrp.referencedMeshes.length} o3d found` : '0 models';
+        document.getElementById('statValue3').textContent = '0 duplicates';
+        document.getElementById('statValue3').className = 'font-mono font-medium text-slate-400 block';
+        document.getElementById('statTransparentCount').textContent = '0 transparent';
+        document.getElementById('statNoAlphaCount').textContent = '0 No Alpha';
+        document.getElementById('labelTableO3dName').textContent = 'No file loaded';
+
+        btnExportO3d.disabled = true;
+        btnExportO3d.className = 'cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 transition opacity-40 cursor-not-allowed';
+        document.getElementById('labelDownloadO3d').textContent = 'Export .o3d (No File)';
+        const icNoFile = document.getElementById('iconDownloadO3d');
+        if (icNoFile) icNoFile.setAttribute('data-lucide', 'lock');
+        btnCombineToolbar.disabled = true;
+        btnCombineToolbar.classList.add('opacity-40', 'cursor-not-allowed');
+        document.getElementById('labelCombineToolbar').textContent = 'Combine Duplicates (0)';
+        bannerDuplicate.classList.add('hidden');
+
+        document.getElementById('countFilterAll').textContent = '0';
+        document.getElementById('countFilterDuplicates').textContent = '0';
+        document.getElementById('countFilterTransparent').textContent = '0';
+        document.getElementById('countFilterNoAlpha').textContent = '0';
+        document.getElementById('countFilterMissing').textContent = '0';
+
+        if (activeScoGrp) {
+          gridAlpha.innerHTML = `
+            <div class="sm:col-span-2 py-10 px-4 text-center text-xs flex flex-col items-center justify-center gap-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold">.SCO</div>
+              <div>
+                <p class="text-sm font-semibold text-amber-200">Loaded ${escapeHtml(activeScoGrp.scoName)} (${activeScoGrp.referencedMeshes.length} [mesh] references)</p>
+                <p class="max-w-md text-slate-300 mt-1">Referenced meshes: <code class="font-mono text-amber-400">${escapeHtml(activeScoGrp.referencedMeshes.slice(0, 4).join(', '))}${activeScoGrp.referencedMeshes.length > 4 ? '...' : ''}</code></p>
+                <p class="text-xs text-slate-400 mt-1">Make sure the Sceneryobject folder contains its <code class="font-mono text-slate-300">model/</code> folder so the <code class="font-mono text-slate-300">.o3d</code> files load automatically.</p>
+              </div>
+            </div>
+          `;
+        } else {
+          gridAlpha.innerHTML = `
+            <div class="sm:col-span-2 py-14 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+              <p class="text-sm font-medium text-slate-300">No models loaded yet</p>
+              <p class="max-w-md text-slate-400">Select a workflow mode above and import an individual <code class="font-mono text-amber-400">.o3d</code>, a Sceneryobject folder (<code class="font-mono text-amber-400">.sco</code>), or a Model folder (<code class="font-mono text-amber-400">.o3d</code> batch).</p>
+            </div>
+          `;
+        }
+
+        document.getElementById('textareaScoOutput').value = '// Import .o3d or a Sceneryobject folder to generate [matl] blocks.';
+        document.getElementById('statScoBlocksCount').textContent = '0 [matl] blocks';
+        if (window.lucide) window.lucide.createIcons();
+        return;
+      }
+
+      // Active Model Loaded
+      if (appState.mode === 'sco' && appState.scoGroups.length > 0) {
+        const activeScoGrp = appState.scoGroups[appState.activeScoIndex];
+        badgeModel.textContent = `${appState.scoGroups.length} .sco (${activeScoGrp.o3dList.length} .o3d)`;
+        document.getElementById('statValue1').textContent = activeScoGrp.scoName;
+        document.getElementById('statValue2').textContent = `${activeScoGrp.o3dList.length} o3d in this .sco`;
+      } else {
+        badgeModel.textContent = `${activeList.length} .o3d Model${activeList.length === 1 ? '' : 's'}`;
+        document.getElementById('statValue1').textContent = activeO3d.fileName;
+        document.getElementById('statValue2').textContent = `${activeList.length} o3d model${activeList.length === 1 ? '' : 's'}`;
+      }
+      badgeModel.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+
+      const duplicateCards = mappedList.filter(m => m.isDuplicate);
+      const uniqueDupKeys = new Set(duplicateCards.map(m => m.lowerKey));
+      const redundantSlotsCount = duplicateCards.length - uniqueDupKeys.size;
+
+      const modal = document.getElementById('modalExportLocked');
+      const title = document.getElementById('modalExportLockedTitle');
+      const whyText = document.getElementById('modalExportLockedWhy');
+      const howText = document.getElementById('modalExportLockedHow');
+      const btnCombine = document.getElementById('btnModalCombineAndUnlock');
+      const labelCombine = document.getElementById('labelModalCombineAction');
+      const fileCode = document.getElementById('modalExportLockedFileCode');
+
+      if (fileCode) fileCode.textContent = activeO3d.fileName;
+
+      if (redundantSlotsCount > 0) {
+        title.textContent = `Export Locked: ${redundantSlotsCount} Duplicate Slot${redundantSlotsCount === 1 ? '' : 's'} Not Merged`;
+        whyText.innerHTML = `You have not merged duplicate material slots in <code class="font-mono text-amber-300">${escapeHtml(activeO3d.fileName)}</code> yet. Exporting an unfixed file would produce an identical copy of what you already have on disk.`;
+        howText.innerHTML = `We detected <strong>${duplicateCards.length} material slots</strong> sharing <strong>${uniqueDupKeys.size} duplicate texture(s)</strong> (${redundantSlotsCount} redundant slots). Click <strong>"Combine Duplicates &amp; Unlock"</strong> below to merge them into single slots and cut OMSI draw calls. Once merged, the export button unlocks immediately!`;
+        btnCombine.classList.remove('hidden');
+        labelCombine.textContent = `Combine ${redundantSlotsCount} Duplicate${redundantSlotsCount === 1 ? '' : 's'} & Unlock`;
+      } else {
+        title.textContent = `Export Locked: 0 Duplicates Detected`;
+        whyText.innerHTML = `<code class="font-mono text-amber-300">${escapeHtml(activeO3d.fileName)}</code> already has <strong>0 duplicate material slots</strong> and is already optimal!`;
+        howText.innerHTML = `Because there are no redundant texture slots to combine, re-exporting this <code class="font-mono text-slate-200">.o3d</code> file is unnecessary as it would be identical to your existing file. You can still copy the clean <code class="font-mono text-slate-200">[matl_alpha]</code> blocks from the right panel into your <code class="font-mono text-slate-200">.sco</code> file.`;
+        btnCombine.classList.add('hidden');
+      }
+
+      modal.classList.remove('hidden');
+      logCommand(`Export locked for ${activeO3d.fileName}: ${redundantSlotsCount > 0 ? redundantSlotsCount + ' duplicate slots not merged yet.' : '0 duplicates detected (already optimal).'}`);
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeExportLockedModal() {
+      const modal = document.getElementById('modalExportLocked');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function renderAll() {
+      updateSortButtonsUI();
+
+      const activeList = getActiveO3dList();
+      const activeO3d = getActiveO3d();
+      const mappedList = activeO3d ? computeMappedTexturesForO3d(activeO3d) : [];
+
+      const badgeModel = document.getElementById('badgeModelStatus');
+      const badgeFolder = document.getElementById('badgeFolderStatus');
+      const btnExportO3d = document.getElementById('btnDownloadOptimizedO3d');
+      const btnCombineToolbar = document.getElementById('btnCombineAllToolbar');
+      const bannerDuplicate = document.getElementById('bannerDuplicateAlert');
+      const containerScoStepper = document.getElementById('containerScoStepper');
+      const containerStepper = document.getElementById('containerStepper');
+      const gridAlpha = document.getElementById('gridAlphaCards');
+      const dropzoneTexture = document.getElementById('dropzoneTexture');
+      const dropzoneModel = document.getElementById('dropzoneModel');
+
+      // Mode 2 specific UI layout: hide texture dropzone because Sceneryobject folder already provides textures
+      if (appState.mode === 'sco') {
+        dropzoneTexture.classList.add('hidden');
+        dropzoneModel.classList.remove('lg:col-span-6');
+        dropzoneModel.classList.add('lg:col-span-12');
+      } else {
+        dropzoneTexture.classList.remove('hidden');
+        dropzoneModel.classList.remove('lg:col-span-12');
+        dropzoneModel.classList.add('lg:col-span-6');
+      }
+
+      const btnClearSearch = document.getElementById('btnClearSearch');
+      if (appState.searchQuery.length > 0) {
+        btnClearSearch.classList.remove('hidden');
+      } else {
+        btnClearSearch.classList.add('hidden');
+      }
+
+      badgeFolder.textContent = `${appState.textureFolderMap.size} file${appState.textureFolderMap.size === 1 ? '' : 's'} indexed`;
+      if (appState.textureFolderMap.size > 0) {
+        badgeFolder.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30';
+      } else {
+        badgeFolder.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700';
+      }
+      document.getElementById('statFolderCount').textContent = `${appState.textureFolderMap.size} textures`;
+
+      // LEVEL 1 STEPPER: Mode 2 .SCO Selector
+      if (appState.mode === 'sco' && appState.scoGroups.length > 0) {
+        containerScoStepper.classList.remove('hidden');
+        const activeScoGrp = appState.scoGroups[appState.activeScoIndex] || appState.scoGroups[0];
+        document.getElementById('badgeScoPosition').textContent = `SCO ${appState.activeScoIndex + 1} of ${appState.scoGroups.length}:`;
+        document.getElementById('badgeActiveScoName').textContent = activeScoGrp.scoName;
+
+        const stripScoPills = document.getElementById('stripScoPills');
+        stripScoPills.innerHTML = '';
+        appState.scoGroups.forEach((grp, idx) => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          const isActive = idx === appState.activeScoIndex;
+          pill.className = `px-3 py-1.5 rounded-lg text-xs font-mono shrink-0 transition flex items-center gap-1.5 ${
+            isActive
+              ? 'bg-amber-500 text-slate-950 font-bold shadow'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+          }`;
+          pill.innerHTML = `<span>#${idx + 1}</span> <span>${escapeHtml(grp.scoName)}</span> <span class="text-[10px] opacity-75">(${grp.o3dList.length} o3d)</span>`;
+          pill.addEventListener('click', () => {
+            appState.activeScoIndex = idx;
+            appState.activeO3dIndex = 0;
+            renderAll();
+          });
+          stripScoPills.appendChild(pill);
+        });
+
+        document.getElementById('btnPrevSco').disabled = appState.activeScoIndex === 0;
+        document.getElementById('btnNextSco').disabled = appState.activeScoIndex >= appState.scoGroups.length - 1;
+      } else {
+        containerScoStepper.classList.add('hidden');
+      }
+
+      // LEVEL 2 STEPPER: .o3d Mesh Stepper
+      const showMeshStepper = (appState.mode === 'sco' && activeList.length > 1) || (appState.mode === 'folder' && activeList.length > 0);
+      if (showMeshStepper) {
+        containerStepper.classList.remove('hidden');
+        document.getElementById('labelStepperPrefix').textContent = appState.mode === 'sco'
+          ? `.o3d in ${appState.scoGroups[appState.activeScoIndex]?.scoName || '.sco'}`
+          : 'Folder .o3d Step';
+        document.getElementById('badgeStepPosition').textContent = `Mesh ${appState.activeO3dIndex + 1} of ${activeList.length}:`;
+        document.getElementById('badgeStepMeshName').textContent = activeO3d ? activeO3d.fileName : '';
+
+        const stripPills = document.getElementById('stripStepPills');
+        stripPills.innerHTML = '';
+        activeList.forEach((mesh, idx) => {
+          const pill = document.createElement('button');
+          pill.type = 'button';
+          const isActive = idx === appState.activeO3dIndex;
+          pill.className = `px-3 py-1 rounded-lg text-xs font-mono shrink-0 transition flex items-center gap-1.5 ${
+            isActive
+              ? 'bg-amber-500 text-slate-950 font-bold shadow'
+              : 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+          }`;
+          pill.innerHTML = `<span>#${idx + 1}</span> <span>${escapeHtml(mesh.fileName)}</span>`;
+          pill.addEventListener('click', () => {
+            appState.activeO3dIndex = idx;
+            renderAll();
+          });
+          stripPills.appendChild(pill);
+        });
+
+        document.getElementById('btnPrevStep').disabled = appState.activeO3dIndex === 0;
+        document.getElementById('btnNextStep').disabled = appState.activeO3dIndex >= activeList.length - 1;
+      } else {
+        containerStepper.classList.add('hidden');
+      }
+
+      if (!activeO3d) {
+        const activeScoGrp = appState.mode === 'sco' ? appState.scoGroups[appState.activeScoIndex] : null;
+        badgeModel.textContent = activeScoGrp ? `${activeScoGrp.referencedMeshes.length} [mesh] in .sco` : 'Awaiting File';
+        badgeModel.className = activeScoGrp
+          ? 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30'
+          : 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-slate-800 text-slate-400 border border-slate-700';
+
+        document.getElementById('statValue1').textContent = activeScoGrp ? activeScoGrp.scoName : 'None';
+        document.getElementById('statValue2').textContent = activeScoGrp ? `0 / ${activeScoGrp.referencedMeshes.length} o3d found` : '0 models';
+        document.getElementById('statValue3').textContent = '0 duplicates';
+        document.getElementById('statValue3').className = 'font-mono font-medium text-slate-400 block';
+        document.getElementById('statTransparentCount').textContent = '0 transparent';
+        document.getElementById('statNoAlphaCount').textContent = '0 No Alpha';
+        document.getElementById('labelTableO3dName').textContent = 'No file loaded';
+
+        btnExportO3d.disabled = true;
+        btnExportO3d.className = 'cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 border border-slate-700 transition opacity-40 cursor-not-allowed';
+        document.getElementById('labelDownloadO3d').textContent = 'Export .o3d (No File)';
+        const icNoFile = document.getElementById('iconDownloadO3d');
+        if (icNoFile) icNoFile.setAttribute('data-lucide', 'lock');
+        btnCombineToolbar.disabled = true;
+        btnCombineToolbar.classList.add('opacity-40', 'cursor-not-allowed');
+        document.getElementById('labelCombineToolbar').textContent = 'Combine Duplicates (0)';
+        bannerDuplicate.classList.add('hidden');
+
+        document.getElementById('countFilterAll').textContent = '0';
+        document.getElementById('countFilterDuplicates').textContent = '0';
+        document.getElementById('countFilterTransparent').textContent = '0';
+        document.getElementById('countFilterNoAlpha').textContent = '0';
+        document.getElementById('countFilterMissing').textContent = '0';
+
+        if (activeScoGrp) {
+          gridAlpha.innerHTML = `
+            <div class="sm:col-span-2 py-10 px-4 text-center text-xs flex flex-col items-center justify-center gap-3 bg-amber-500/5 rounded-xl border border-amber-500/20">
+              <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold">.SCO</div>
+              <div>
+                <p class="text-sm font-semibold text-amber-200">Loaded ${escapeHtml(activeScoGrp.scoName)} (${activeScoGrp.referencedMeshes.length} [mesh] references)</p>
+                <p class="max-w-md text-slate-300 mt-1">Referenced meshes: <code class="font-mono text-amber-400">${escapeHtml(activeScoGrp.referencedMeshes.slice(0, 4).join(', '))}${activeScoGrp.referencedMeshes.length > 4 ? '...' : ''}</code></p>
+                <p class="text-xs text-slate-400 mt-1">Make sure the Sceneryobject folder contains its <code class="font-mono text-slate-300">model/</code> folder so the <code class="font-mono text-slate-300">.o3d</code> files load automatically.</p>
+              </div>
+            </div>
+          `;
+        } else {
+          gridAlpha.innerHTML = `
+            <div class="sm:col-span-2 py-14 text-center text-slate-400 text-xs flex flex-col items-center justify-center gap-2">
+              <p class="text-sm font-medium text-slate-300">No models loaded yet</p>
+              <p class="max-w-md text-slate-400">Select a workflow mode above and import an individual <code class="font-mono text-amber-400">.o3d</code>, a Sceneryobject folder (<code class="font-mono text-amber-400">.sco</code>), or a Model folder (<code class="font-mono text-amber-400">.o3d</code> batch).</p>
+            </div>
+          `;
+        }
+
+        document.getElementById('textareaScoOutput').value = '// Import .o3d or a Sceneryobject folder to generate [matl] blocks.';
+        document.getElementById('statScoBlocksCount').textContent = '0 [matl] blocks';
+        if (window.lucide) window.lucide.createIcons();
+        return;
+      }
+
+      // Active Model Loaded
+      if (appState.mode === 'sco' && appState.scoGroups.length > 0) {
+        const activeScoGrp = appState.scoGroups[appState.activeScoIndex];
+        badgeModel.textContent = `${appState.scoGroups.length} .sco (${activeScoGrp.o3dList.length} .o3d)`;
+        document.getElementById('statValue1').textContent = activeScoGrp.scoName;
+        document.getElementById('statValue2').textContent = `${activeScoGrp.o3dList.length} o3d in this .sco`;
+      } else {
+        badgeModel.textContent = `${activeList.length} .o3d Model${activeList.length === 1 ? '' : 's'}`;
+        document.getElementById('statValue1').textContent = activeO3d.fileName;
+        document.getElementById('statValue2').textContent = `${activeList.length} o3d model${activeList.length === 1 ? '' : 's'}`;
+      }
+      badgeModel.className = 'px-2 py-0.5 text-[11px] font-medium rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30';
+
+      const bannerBatch = document.getElementById('bannerFolderBatchOpt');
+      const isBatchMode = appState.mode === 'sco' || appState.mode === 'folder';
+
+      let allFolderModels = [];
+      if (appState.mode === 'sco') {
+        const seenMap = new Map();
+        appState.scoGroups.forEach(grp => {
+          grp.o3dList.forEach(m => {
+            if (!seenMap.has(m.fileName.toLowerCase())) {
+              seenMap.set(m.fileName.toLowerCase(), m);
+            }
+          });
+        });
+        allFolderModels = Array.from(seenMap.values());
+      } else if (appState.mode === 'folder') {
+        allFolderModels = appState.o3dList || [];
+      }
+
+      if (isBatchMode && allFolderModels.length > 0) {
+        bannerBatch.classList.remove('hidden');
+
+        let modelsWithDupsCount = 0;
+        let totalRedundantSlots = 0;
+        let fixedModelsCount = 0;
+
+        allFolderModels.forEach(m => {
+          if ((m.combinedSlotsCount || 0) > 0) {
+            fixedModelsCount++;
+          }
+          const mList = computeMappedTexturesForO3d(m);
+          const dups = mList.filter(card => card.isDuplicate);
+          const uKeys = new Set(dups.map(card => card.lowerKey));
+          const redCount = dups.length - uKeys.size;
+          if (redCount > 0) {
+            modelsWithDupsCount++;
+            totalRedundantSlots += redCount;
+          }
+        });
+
+        const titleBatch = document.getElementById('titleFolderBatch');
+        const badgeBatch = document.getElementById('badgeFolderBatchStats');
+        const descBatch = document.getElementById('descFolderBatch');
+        const labelZip = document.getElementById('labelBatchZip');
+
+        if (totalRedundantSlots > 0) {
+          bannerBatch.className = 'rounded-2xl border border-amber-500/40 bg-amber-500/10 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `Folder Optimization Available (${modelsWithDupsCount} of ${allFolderModels.length} models have duplicates)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+          badgeBatch.textContent = `${totalRedundantSlots} redundant duplicate slot(s) can be merged`;
+          descBatch.innerHTML = `Found <strong>${totalRedundantSlots} duplicate material slots</strong> across ${modelsWithDupsCount} model(s) in this folder. Click below to merge all duplicates across all models and export a complete <code class="font-mono text-slate-200">.zip</code> replacing all <code class="font-mono text-slate-200">.o3d</code> files in their original folders in one go.`;
+          labelZip.textContent = `Batch Fix All Duplicates & Download ZIP (${allFolderModels.length} models)`;
+        } else if (fixedModelsCount > 0) {
+          bannerBatch.className = 'rounded-2xl border border-emerald-500/40 bg-emerald-950/40 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `✓ All Models in Folder Optimized (${fixedModelsCount} fixed)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+          badgeBatch.textContent = `All models clean`;
+          descBatch.innerHTML = `All duplicate material slots have been merged! You can download the complete optimized <code class="font-mono text-slate-200">.zip</code> archive anytime to overwrite your <code class="font-mono text-slate-200">model/</code> folder.`;
+          labelZip.textContent = `Download Optimized ZIP (${allFolderModels.length} models)`;
+        } else {
+          bannerBatch.className = 'rounded-2xl border border-slate-800 bg-slate-900/60 p-4 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3.5 transition-all';
+          titleBatch.textContent = `Folder Scan: All ${allFolderModels.length} Models Clean (0 duplicates)`;
+          badgeBatch.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-mono font-semibold bg-slate-800 text-slate-300 border border-slate-700';
+          badgeBatch.textContent = `0 duplicates`;
+          descBatch.innerHTML = `None of the <code class="font-mono text-slate-200">.o3d</code> models in this folder contain duplicate material slots. No batch fixes are necessary!`;
+          labelZip.textContent = `Download All as ZIP (${allFolderModels.length} models)`;
+        }
+      } else {
+        bannerBatch.classList.add('hidden');
+      }
+
+      const isFixed = (activeO3d.combinedSlotsCount || 0) > 0;
+      const icDownload = document.getElementById('iconDownloadO3d');
+
+      if (isFixed) {
+        // UNLOCKED: Duplicates have been merged!
+        btnExportO3d.disabled = false;
+        btnExportO3d.className = 'cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md shadow-emerald-950/40 border border-emerald-500/60 ring-1 ring-emerald-400/30 transition';
+        btnExportO3d.title = `Export optimized ${activeO3d.fileName} (${activeO3d.combinedSlotsCount} duplicate slot${activeO3d.combinedSlotsCount === 1 ? '' : 's'} merged)`;
+        document.getElementById('labelDownloadO3d').textContent = `Export Optimized ${activeO3d.fileName}`;
+        if (icDownload) icDownload.setAttribute('data-lucide', 'download');
+      } else {
+        // LOCKED: No duplicates merged yet. Keep clickable so clicking shows explanation modal
+        btnExportO3d.disabled = false;
+        btnExportO3d.className = 'cursor-pointer inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-750 text-slate-300 hover:text-amber-300 border border-slate-700 hover:border-amber-500/50 transition shadow-sm';
+        btnExportO3d.title = `Locked: No duplicate material slots were fixed in this model yet (Click to see why & how to unlock)`;
+        document.getElementById('labelDownloadO3d').textContent = `Export ${activeO3d.fileName} (Locked)`;
+        if (icDownload) icDownload.setAttribute('data-lucide', 'lock');
+      }
+
+      document.getElementById('labelTableO3dName').textContent = activeO3d.fileName;
+
+      // Duplicate Check for the Active Model
+      const duplicateCards = mappedList.filter(m => m.isDuplicate);
+      const uniqueDupKeys = new Set(duplicateCards.map(m => m.lowerKey));
+      const redundantSlotsCount = duplicateCards.length - uniqueDupKeys.size;
+
+      const statDupEl = document.getElementById('statValue3');
+      if (redundantSlotsCount > 0) {
+        statDupEl.textContent = `⚠️ ${duplicateCards.length} slots (${redundantSlotsCount} extra)`;
+        statDupEl.className = 'font-mono font-semibold text-amber-300 block';
+        btnCombineToolbar.disabled = false;
+        btnCombineToolbar.classList.remove('opacity-40', 'cursor-not-allowed');
+        document.getElementById('labelCombineToolbar').textContent = `Combine Duplicates (${redundantSlotsCount})`;
+
+        bannerDuplicate.classList.remove('hidden');
+        document.getElementById('bannerDuplicateTitle').textContent = `${duplicateCards.length} Material Slots Share ${uniqueDupKeys.size} Duplicate Texture${uniqueDupKeys.size === 1 ? '' : 's'} in ${activeO3d.fileName}`;
+        document.getElementById('bannerDuplicateDesc').textContent = `Combine ${redundantSlotsCount} redundant slot${redundantSlotsCount === 1 ? '' : 's'} to reduce file size and cut draw calls in OMSI.`;
+        document.getElementById('labelCombineAllBanner').textContent = `Combine All Duplicates`;
+      } else {
+        btnCombineToolbar.disabled = true;
+        btnCombineToolbar.classList.add('opacity-40', 'cursor-not-allowed');
+        document.getElementById('labelCombineToolbar').textContent = '0 Duplicates';
+        bannerDuplicate.classList.add('hidden');
+
+        if (activeO3d.combinedSlotsCount > 0) {
+          statDupEl.textContent = `✓ Combined ${activeO3d.combinedSlotsCount} (-${activeO3d.savedBytesCount} B)`;
+          statDupEl.className = 'font-mono font-semibold text-emerald-400 block';
+        } else {
+          statDupEl.textContent = '0 duplicates';
+          statDupEl.className = 'font-mono font-medium text-emerald-400 block';
+        }
+      }
+
+      // Filter counters for Active Model
+      const transparentCount = mappedList.filter(m => m.effectiveMode === 1 || m.effectiveMode === 2).length;
+      const noAlphaCount = mappedList.filter(m => m.folderTex && m.effectiveMode === 0).length;
+      const missingCount = mappedList.filter(m => !m.folderTex).length;
+
+      document.getElementById('statTransparentCount').textContent = `${transparentCount} (Alpha 1 / 2)`;
+      document.getElementById('statNoAlphaCount').textContent = `${noAlphaCount} No Alpha`;
+
+      document.getElementById('countFilterAll').textContent = String(mappedList.length);
+      document.getElementById('countFilterDuplicates').textContent = String(duplicateCards.length);
+      document.getElementById('countFilterTransparent').textContent = String(transparentCount);
+      document.getElementById('countFilterNoAlpha').textContent = String(noAlphaCount);
+      document.getElementById('countFilterMissing').textContent = String(missingCount);
+
+      // Filter cards by category & search query
+      const query = appState.searchQuery.trim().toLowerCase();
+      let filteredCards = mappedList.filter(m => {
+        if (appState.alphaFilter === 'duplicates' && !m.isDuplicate) return false;
+        if (appState.alphaFilter === 'transparent' && m.effectiveMode !== 1 && m.effectiveMode !== 2) return false;
+        if (appState.alphaFilter === 'noalpha' && (!m.folderTex || m.effectiveMode !== 0)) return false;
+        if (appState.alphaFilter === 'missing' && m.folderTex) return false;
+        if (query && !m.textureName.toLowerCase().includes(query)) return false;
+        return true;
+      });
+
+      // Apply sorting option
+      const sortMode = appState.textureSort;
+      filteredCards.sort((a, b) => {
+        if (sortMode === 'slot-asc') {
+          return a.slotIdx - b.slotIdx;
+        } else if (sortMode === 'slot-desc') {
+          return b.slotIdx - a.slotIdx;
+        } else if (sortMode === 'name-asc') {
+          return a.textureName.localeCompare(b.textureName, undefined, { sensitivity: 'base' });
+        } else if (sortMode === 'name-desc') {
+          return b.textureName.localeCompare(a.textureName, undefined, { sensitivity: 'base' });
+        } else if (sortMode === 'tri-desc') {
+          return b.triCount - a.triCount;
+        } else if (sortMode === 'dup-first') {
+          if (a.isDuplicate !== b.isDuplicate) return b.isDuplicate ? 1 : -1;
+          return a.slotIdx - b.slotIdx;
+        }
+        return a.slotIdx - b.slotIdx;
+      });
+
+      gridAlpha.innerHTML = '';
+
+      if (filteredCards.length === 0) {
+        gridAlpha.innerHTML = `
+          <div class="sm:col-span-2 py-12 text-center text-slate-500 text-xs">
+            No material slots match "${escapeHtml(query || appState.alphaFilter)}" in ${escapeHtml(activeO3d.fileName)}.
+          </div>
+        `;
+      } else {
+        filteredCards.forEach(m => {
+          const tex = m.folderTex;
+          const isOutputActive = m.effectiveMode === 1 || m.effectiveMode === 2;
+
+          let cardBorderClass = 'border-slate-800 bg-slate-950/70 opacity-90';
+          if (m.effectiveMode === 1) {
+            cardBorderClass = 'border-amber-500/50 bg-amber-500/10';
+          } else if (m.effectiveMode === 2) {
+            cardBorderClass = 'border-indigo-500/50 bg-indigo-500/10';
+          }
+          if (m.isDuplicate) {
+            cardBorderClass += ' ring-1 ring-amber-500/50';
+          }
+
+          const card = document.createElement('div');
+          card.className = `rounded-xl border p-3.5 flex flex-col justify-between gap-2.5 transition ${cardBorderClass}`;
+
+          const thumbHtml = tex && tex.previewUrl
+            ? `
+              <button type="button" data-preview-key="${escapeHtmlAttr(m.lowerKey)}" data-preview-slot="${m.slotIdx}" class="btn-open-preview group relative w-12 h-12 rounded-lg overflow-hidden checkerboard border border-slate-700 hover:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 shrink-0 cursor-zoom-in transition" title="Click to view larger texture preview">
+                <img src="${tex.previewUrl}" alt="${escapeHtmlAttr(m.textureName)}" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-150" />
+                <span class="absolute inset-0 bg-slate-950/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <i data-lucide="zoom-in" class="w-4 h-4 text-amber-300 drop-shadow"></i>
+                </span>
+              </button>
+            `
+            : `<div class="w-12 h-12 rounded-lg checkerboard border border-slate-800 flex items-center justify-center text-[10px] font-mono text-slate-500 shrink-0" title="Missing in scanned texture folder">N/A</div>`;
+
+          let statusBadge = '';
+          let pixelDetails = '';
+
+          if (!tex) {
+            if (isOutputActive) {
+              statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">[matl_alpha] ${m.effectiveMode} (Manual)</span>`;
+            } else {
+              statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-500/15 text-rose-300 border border-rose-500/30">Missing in Folder • No Alpha</span>`;
+            }
+            pixelDetails = `Select texture folder containing "${m.cleanBaseName}"`;
+          } else if (m.effectiveMode === 0) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700">No Alpha (Skipped in .sco)</span>`;
+            pixelDetails = tex.hasTransparency
+              ? `Cutout (A=0): ${tex.zeroAlphaPct}% | Half (0<A<255): ${tex.semiAlphaPct}%`
+              : `${tex.width}×${tex.height}px • 0 transparent or half-transparent pixels`;
+          } else if (m.effectiveMode === 1) {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">[matl_alpha] 1 (Cutout)</span>`;
+            pixelDetails = `Cutout (A=0): ${tex.zeroAlphaPct}% | Half (0<A<255): ${tex.semiAlphaPct}%`;
+          } else {
+            statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">[matl_alpha] 2 (Half-Trans)</span>`;
+            pixelDetails = `Cutout (A=0): ${tex.zeroAlphaPct}% | Half (0<A<255): ${tex.semiAlphaPct}%`;
+          }
+
+          const duplicateAlertHtml = m.isDuplicate
+            ? `
+              <div class="rounded-lg bg-amber-500/15 border border-amber-500/40 px-2.5 py-1.5 flex items-center justify-between gap-2 text-[11px]">
+                <div class="flex items-center gap-1.5 text-amber-200 min-w-0">
+                  <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-400 shrink-0"></i>
+                  <span class="truncate font-medium">Duplicate #${m.duplicateOccurrenceNum} of ${m.duplicateTotalSlots} (Slots #${m.duplicateSlotsList.join(', #')})</span>
+                </div>
+                <button type="button" data-combine-key="${escapeHtmlAttr(m.lowerKey)}" class="btn-combine-single px-2 py-0.5 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-[10px] shrink-0 transition">
+                  Combine (${m.duplicateTotalSlots}→1)
+                </button>
+              </div>
+            `
+            : '';
+
+          card.innerHTML = `
+            <div class="flex items-start gap-3">
+              ${thumbHtml}
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-1">
+                  <div class="flex items-center gap-1.5 min-w-0">
+                    ${
+                      m.isDuplicate
+                        ? `<i data-lucide="alert-triangle" class="w-4 h-4 text-amber-400 shrink-0"></i>`
+                        : ''
+                    }
+                    <span class="font-mono text-xs font-semibold text-white truncate" title="${escapeHtmlAttr(m.textureName)}">${escapeHtml(m.textureName)}</span>
+                  </div>
+                  <span class="text-[10px] font-mono text-slate-400 shrink-0">Slot #${m.slotIdx} (${m.triCount} tris)</span>
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                  ${statusBadge}
+                </div>
+                <p class="text-[11px] font-mono text-slate-400 mt-1 truncate">${escapeHtml(pixelDetails)}</p>
+              </div>
+            </div>
+
+            ${duplicateAlertHtml}
+
+            <div class="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+              <span class="text-slate-400">Output Mode:</span>
+              <select data-alpha-override="${m.slotIdx}" class="alpha-override-select rounded-lg bg-slate-900 border border-slate-700 px-2.5 py-1 text-[11px] font-mono text-slate-100 focus:outline-none focus:border-amber-500">
+                <option value="0" ${m.effectiveMode === 0 ? 'selected' : ''}>No Alpha (Do not output)</option>
+                <option value="1" ${m.effectiveMode === 1 ? 'selected' : ''}>[matl_alpha] 1 (Cutout)</option>
+                <option value="2" ${m.effectiveMode === 2 ? 'selected' : ''}>[matl_alpha] 2 (Half-Trans)</option>
+              </select>
+            </div>
+          `;
+          gridAlpha.appendChild(card);
+        });
+      }
+
+      gridAlpha.querySelectorAll('.alpha-override-select').forEach(sel => {
+        sel.addEventListener('change', (e) => {
+          const slotIdx = Number(e.target.getAttribute('data-alpha-override'));
+          if (activeO3d) {
+            const targetMat = activeO3d.materials.find(item => item.slotIdx === slotIdx);
+            if (targetMat) {
+              targetMat.customAlphaMode = Number(e.target.value);
+              renderAll();
+            }
+          }
+        });
+      });
+
+      gridAlpha.querySelectorAll('.btn-open-preview').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const key = btn.getAttribute('data-preview-key');
+          const slotIdx = Number(btn.getAttribute('data-preview-slot'));
+          openTextureModal(key, slotIdx);
+        });
+      });
+
+      gridAlpha.querySelectorAll('.btn-combine-single').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.getAttribute('data-combine-key');
+          if (activeO3d && key) {
+            const count = combineDuplicateMaterialsInO3d(activeO3d, key);
+            if (count > 0) {
+              showToast(`Combined duplicate slots for ${key} in ${activeO3d.fileName}`);
+              logCommand(`Combined duplicate material slots for texture "${key}" in ${activeO3d.fileName}.`);
+              renderAll();
+            }
+          }
+        });
+      });
+
+      // Render SCO Output Textarea (Clean [matl] + [matl_alpha] blocks only)
+      const textareaSco = document.getElementById('textareaScoOutput');
+      const labelScope = document.getElementById('labelOutputScope');
+      const labelScoTitle = document.getElementById('labelScoOutputTitle');
+      const indexMode = document.getElementById('selectMatlIndexMode').value;
+
+      if (appState.mode === 'sco') {
+        const activeScoGrp = appState.scoGroups[appState.activeScoIndex];
+        const scoNameLabel = activeScoGrp ? activeScoGrp.scoName : (appState.scoFileName || '.sco');
+        labelScoTitle.textContent = `Output for ${scoNameLabel}`;
+        labelScope.textContent = `All [matl] blocks for ${scoNameLabel}:`;
+        const combined = buildActiveScoParagraphs();
+        textareaSco.value = combined.text || `// No transparent textures (Alpha 1 or 2) detected in ${scoNameLabel}.`;
+        document.getElementById('statScoBlocksCount').textContent = `${combined.count} [matl] block${combined.count === 1 ? '' : 's'}`;
+      } else {
+        labelScoTitle.textContent = `Individual Output (${activeO3d.fileName})`;
+        labelScope.textContent = `Active mesh (${activeO3d.fileName}):`;
+        const singleRes = buildCleanMatlBlocks(mappedList, indexMode);
+        textareaSco.value = singleRes.text || `// No transparent textures in ${activeO3d.fileName}.`;
+        document.getElementById('statScoBlocksCount').textContent = `${singleRes.count} [matl] block${singleRes.count === 1 ? '' : 's'}`;
+      }
+
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function escapeHtmlAttr(str) {
+      return escapeHtml(str).replace(/'/g, '&#39;');
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      const container = document.getElementById('toastContainer');
+      const label = document.getElementById('toastMessage');
+      label.textContent = msg;
+      container.classList.remove('hidden');
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        container.classList.add('hidden');
+      }, 3400);
+    }
+
+    function downloadActiveO3d() {
+      const activeO3d = getActiveO3d();
+      if (!activeO3d) return;
+      const outBuffer = exportO3dBinary(activeO3d);
+      const blob = new Blob([outBuffer], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = activeO3d.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${activeO3d.fileName} (${outBuffer.byteLength.toLocaleString()} bytes)`);
+      logCommand(`Exported optimized .o3d model: ${activeO3d.fileName} (${outBuffer.byteLength.toLocaleString()} bytes)`);
+    }
+
+    // =========================================================================
+    // 7. MODE SWITCHER & EVENT LISTENERS
+    // =========================================================================
+    function setWorkflowMode(newMode) {
+      const bBatch = document.getElementById('bannerFolderBatchOpt');
+      if (bBatch) bBatch.classList.add('hidden');
+      appState.mode = newMode;
+      const btnSingle = document.getElementById('modeBtnSingle');
+      const btnSco = document.getElementById('modeBtnSco');
+      const btnFolder = document.getElementById('modeBtnFolder');
+      const descTag = document.getElementById('modeDescriptionTag');
+      const titleDropzone = document.getElementById('labelDropzoneTitle');
+      const subDropzone = document.getElementById('labelDropzoneSub');
+      const btnDropAction = document.getElementById('btnDropzoneAction');
+      const btnFolderAlt = document.getElementById('btnDropzoneFolderAlt');
+      const bannerVehicleWarning = document.getElementById('bannerVehicleWarning');
+
+      const activeBtnClasses = ['bg-amber-500', 'text-slate-950', 'shadow', 'font-semibold'];
+      const inactiveBtnClasses = ['text-slate-300', 'hover:text-white', 'hover:bg-slate-800', 'font-medium'];
+
+      [btnSingle, btnSco, btnFolder].forEach(b => {
+        b.classList.remove(...activeBtnClasses);
+        b.classList.add(...inactiveBtnClasses);
+      });
+
+      logCommand(`Switched import workflow to Mode ${newMode === 'single' ? '1 (Individual .o3d)' : newMode === 'sco' ? '2 (Sceneryobject Folder Scan)' : '3 (Model Folder Scan)'}`);
+      if (newMode === 'single') {
+        btnSingle.classList.add(...activeBtnClasses);
+        btnSingle.classList.remove(...inactiveBtnClasses);
+        descTag.textContent = 'Mode 1: Inspect & edit one individual .o3d file';
+        titleDropzone.textContent = '1. Import Individual .o3d File';
+        subDropzone.textContent = 'Drop an individual .o3d file here or click to browse';
+        btnDropAction.textContent = 'Browse .o3d';
+        btnFolderAlt.classList.add('hidden');
+        bannerVehicleWarning.classList.add('hidden');
+      } else if (newMode === 'sco') {
+        btnSco.classList.add(...activeBtnClasses);
+        btnSco.classList.remove(...inactiveBtnClasses);
+        descTag.textContent = 'Mode 2: Scan Sceneryobject folder — loads every .sco & its .o3d models, outputs by .sco';
+        titleDropzone.textContent = '1. Select Sceneryobject Folder';
+        subDropzone.textContent = 'Select the Sceneryobject folder (e.g. Sceneryobjects\\MyObject) — loads all .sco, model/, and texture/';
+        btnDropAction.textContent = 'Select Sceneryobject Folder';
+        btnFolderAlt.classList.remove('hidden');
+        bannerVehicleWarning.classList.add('hidden');
+      } else if (newMode === 'folder') {
+        btnFolder.classList.add(...activeBtnClasses);
+        btnFolder.classList.remove(...inactiveBtnClasses);
+        descTag.textContent = 'Mode 3: Scan Model folder — step through every .o3d with individual output';
+        titleDropzone.textContent = '1. Select Model Folder (.o3d Batch)';
+        subDropzone.textContent = 'Loads every .o3d in the folder with a step-by-step screen and individual output per .o3d';
+        btnDropAction.textContent = 'Select Model Folder';
+        btnFolderAlt.classList.add('hidden');
+        bannerVehicleWarning.classList.remove('hidden');
+      }
+
+      renderAll();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('modeBtnSingle').addEventListener('click', () => setWorkflowMode('single'));
+      document.getElementById('modeBtnSco').addEventListener('click', () => setWorkflowMode('sco'));
+      document.getElementById('modeBtnFolder').addEventListener('click', () => setWorkflowMode('folder'));
+
+      // Level 1 Stepper (.sco files in Mode 2)
+      document.getElementById('btnPrevSco').addEventListener('click', () => {
+        if (appState.activeScoIndex > 0) {
+          appState.activeScoIndex--;
+          appState.activeO3dIndex = 0;
+          const grp = appState.scoGroups[appState.activeScoIndex];
+          if (grp) logCommand(`Switched to SCO #${appState.activeScoIndex + 1}: ${grp.scoName}.`);
+          renderAll();
+        }
+      });
+      document.getElementById('btnNextSco').addEventListener('click', () => {
+        if (appState.activeScoIndex < appState.scoGroups.length - 1) {
+          appState.activeScoIndex++;
+          appState.activeO3dIndex = 0;
+          const grp = appState.scoGroups[appState.activeScoIndex];
+          if (grp) logCommand(`Switched to SCO #${appState.activeScoIndex + 1}: ${grp.scoName}.`);
+          renderAll();
+        }
+      });
+
+      // Level 2 Stepper (.o3d meshes)
+      document.getElementById('btnPrevStep').addEventListener('click', () => {
+        if (appState.activeO3dIndex > 0) {
+          appState.activeO3dIndex--;
+          const m = getActiveO3d();
+          if (m) logCommand(`Switched to mesh #${appState.activeO3dIndex + 1}: ${m.fileName}.`);
+          renderAll();
+        }
+      });
+      document.getElementById('btnNextStep').addEventListener('click', () => {
+        const list = getActiveO3dList();
+        if (appState.activeO3dIndex < list.length - 1) {
+          appState.activeO3dIndex++;
+          const m = getActiveO3d();
+          if (m) logCommand(`Switched to mesh #${appState.activeO3dIndex + 1}: ${m.fileName}.`);
+          renderAll();
+        }
+      });
+
+      // Filter tabs
+      document.querySelectorAll('.alpha-filter-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          appState.alphaFilter = btn.getAttribute('data-alpha-filter');
+          document.querySelectorAll('.alpha-filter-btn').forEach(b => {
+            b.classList.remove('bg-amber-500', 'text-slate-950', 'shadow', 'font-semibold');
+            b.classList.add('text-slate-300', 'hover:text-white', 'font-medium');
+          });
+          btn.classList.add('bg-amber-500', 'text-slate-950', 'shadow', 'font-semibold');
+          btn.classList.remove('text-slate-300', 'hover:text-white', 'font-medium');
+          renderAll();
+        });
+      });
+
+      // Search Box & Clear button
+      const inputSearch = document.getElementById('inputSearchTexture');
+      inputSearch.addEventListener('input', (e) => {
+        appState.searchQuery = e.target.value;
+        renderAll();
+      });
+      document.getElementById('btnClearSearch').addEventListener('click', () => {
+        appState.searchQuery = '';
+        inputSearch.value = '';
+        renderAll();
+      });
+
+      // Quick Sort Buttons & Full Sort Dropdown
+      document.getElementById('btnQuickSortSlot').addEventListener('click', () => {
+        appState.textureSort = appState.textureSort === 'slot-asc' ? 'slot-desc' : 'slot-asc';
+        renderAll();
+      });
+      document.getElementById('btnQuickSortAlpha').addEventListener('click', () => {
+        appState.textureSort = appState.textureSort === 'name-asc' ? 'name-desc' : 'name-asc';
+        renderAll();
+      });
+      document.getElementById('selectTextureSort').addEventListener('change', (e) => {
+        appState.textureSort = e.target.value;
+        renderAll();
+      });
+
+      // Combine duplicate buttons
+      document.getElementById('btnCombineAllToolbar').addEventListener('click', () => {
+        const active = getActiveO3d();
+        if (active) {
+          const count = combineDuplicateMaterialsInO3d(active, null);
+          if (count > 0) {
+            showToast(`Combined ${count} redundant slots in ${active.fileName}`);
+            logCommand(`Merged ${count} duplicate material slots in ${active.fileName}`);
+            renderAll();
+          }
+        }
+      });
+
+      document.getElementById('btnCombineAllBanner').addEventListener('click', () => {
+        const active = getActiveO3d();
+        if (active) {
+          const count = combineDuplicateMaterialsInO3d(active, null);
+          if (count > 0) {
+            showToast(`Combined ${count} redundant slots in ${active.fileName}`);
+            logCommand(`Merged ${count} duplicate material slots in ${active.fileName}`);
+            renderAll();
+          }
+        }
+      });
+
+      const btnBatchZip = document.getElementById('btnBatchOptimizeZip');
+      if (btnBatchZip) btnBatchZip.addEventListener('click', batchFixAndDownloadZip);
+
+      document.getElementById('btnDownloadOptimizedO3d').addEventListener('click', () => {
+        const active = getActiveO3d();
+        if (!active) return;
+        const isFixed = (active.combinedSlotsCount || 0) > 0;
+        if (!isFixed) {
+          openExportLockedModal();
+        } else {
+          downloadActiveO3d();
+        }
+      });
+
+      // Export Locked Modal Listeners
+      const btnCombineInModal = document.getElementById('btnModalCombineAndUnlock');
+      if (btnCombineInModal) {
+        btnCombineInModal.addEventListener('click', () => {
+          const active = getActiveO3d();
+          if (active) {
+            const count = combineDuplicateMaterialsInO3d(active, null);
+            closeExportLockedModal();
+            if (count > 0) {
+              showToast(`Combined ${count} redundant slots in ${active.fileName}! Export button unlocked.`);
+              renderAll();
+            }
+          }
+        });
+      }
+
+      const btnCloseLockedX = document.getElementById('btnCloseExportLockedX');
+      const btnDismissLocked = document.getElementById('btnModalDismissLocked');
+      const modalLocked = document.getElementById('modalExportLocked');
+      if (btnCloseLockedX) btnCloseLockedX.addEventListener('click', closeExportLockedModal);
+      if (btnDismissLocked) btnDismissLocked.addEventListener('click', closeExportLockedModal);
+      if (modalLocked) {
+        modalLocked.addEventListener('click', (e) => {
+          if (e.target === modalLocked) closeExportLockedModal();
+        });
+      }
+
+      // Texture Preview Modal Event Listeners
+      const modalTex = document.getElementById('modalTexturePreview');
+      const btnCloseTex = document.getElementById('btnModalCloseTexture');
+      if (btnCloseTex) {
+        btnCloseTex.addEventListener('click', closeTextureModal);
+      }
+      if (modalTex) {
+        modalTex.addEventListener('click', (e) => {
+          if (e.target === modalTex) closeTextureModal();
+        });
+      }
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeTextureModal();
+          closeExportLockedModal();
+        }
+      });
+
+      document.getElementById('btnResetAutoAlpha').addEventListener('click', () => {
+        const active = getActiveO3d();
+        if (active) {
+          active.materials.forEach(m => { m.customAlphaMode = null; });
+          showToast(`Reset ${active.fileName} textures to auto alpha`);
+          renderAll();
+        }
+      });
+
+      document.getElementById('btnClearWorkspace').addEventListener('click', () => {
+        const bBatch = document.getElementById('bannerFolderBatchOpt');
+        if (bBatch) bBatch.classList.add('hidden');
+        appState.scoGroups = [];
+        appState.activeScoIndex = 0;
+        appState.o3dList = [];
+        appState.activeO3dIndex = 0;
+        appState.scoFileName = '';
+        appState.scoMeshList = [];
+        appState.textureFolderMap.clear();
+        document.getElementById('inputSingleO3d').value = '';
+        document.getElementById('inputScoFile').value = '';
+        document.getElementById('inputModelFolder').value = '';
+        document.getElementById('inputTextureFolder').value = '';
+        document.getElementById('inputTextureFiles').value = '';
+        showToast('Cleared all models, .sco files, and textures');
+        renderAll();
+      });
+
+      // Dropzone Click Routing Based on Mode
+      const dropzoneModel = document.getElementById('dropzoneModel');
+      const inputSingleO3d = document.getElementById('inputSingleO3d');
+      const inputScoFile = document.getElementById('inputScoFile');
+      const inputModelFolder = document.getElementById('inputModelFolder');
+      const btnFolderAlt = document.getElementById('btnDropzoneFolderAlt');
+
+      dropzoneModel.addEventListener('click', (e) => {
+        if (e.target === btnFolderAlt) return;
+        if (appState.mode === 'single') {
+          inputSingleO3d.click();
+        } else if (appState.mode === 'sco') {
+          inputModelFolder.click();
+        } else if (appState.mode === 'folder') {
+          inputModelFolder.click();
+        }
+      });
+
+      btnFolderAlt.addEventListener('click', (e) => {
+        e.stopPropagation();
+        inputScoFile.click();
+      });
+
+      dropzoneModel.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzoneModel.classList.add('border-amber-400', 'bg-slate-925');
+      });
+      dropzoneModel.addEventListener('dragleave', () => {
+        dropzoneModel.classList.remove('border-amber-400', 'bg-slate-925');
+      });
+      dropzoneModel.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        dropzoneModel.classList.remove('border-amber-400', 'bg-slate-925');
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length === 0) return;
+
+        const scoFiles = files.filter(f => f.name.toLowerCase().endsWith('.sco'));
+        const o3dFiles = files.filter(f => f.name.toLowerCase().endsWith('.o3d'));
+
+        if (scoFiles.length > 0) {
+          setWorkflowMode('sco');
+          await processSceneryFolderFiles(files);
+        } else if (o3dFiles.length > 1) {
+          setWorkflowMode('folder');
+          await handleMultipleO3dFiles(o3dFiles);
+        } else if (o3dFiles.length === 1) {
+          setWorkflowMode('single');
+          await handleSingleO3dFile(o3dFiles[0]);
+        }
+      });
+
+      // Mode 1: Handle Single .o3d File
+      inputSingleO3d.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) await handleSingleO3dFile(file);
+      });
+
+      async function handleSingleO3dFile(file) {
+        try {
+          showLoadingModal('Parsing OMSI .o3d File...', file.name, 0, 1);
+          await new Promise(r => setTimeout(r, 40));
+          const buf = await file.arrayBuffer();
+          const parsed = parseO3dBinary(buf, file.name);
+          showLoadingModal('Parsing OMSI .o3d File...', file.name, 1, 1);
+          await new Promise(r => setTimeout(r, 100));
+          hideLoadingModal();
+
+          appState.o3dList = [parsed];
+          appState.activeO3dIndex = 0;
+          showToast(`Imported ${file.name}`);
+          logCommand(`Loaded single .o3d: ${file.name} (${(file.size / 1024).toFixed(1)} KB, v${parsed.version}) — ${parsed.vertexCount.toLocaleString()} vertices, ${parsed.triangles.length.toLocaleString()} tris, ${parsed.materials.length} material slot(s)${parsed.encrypted ? ' [Encrypted]' : ''}.`);
+          const dCards = computeMappedTexturesForO3d(parsed).filter(m => m.isDuplicate);
+          if (dCards.length > 0) {
+            logCommand(`Detected ${dCards.length} duplicate material slot(s) in ${parsed.fileName} that can be combined.`);
+          } else {
+            logCommand(`No duplicate material slots detected in ${parsed.fileName} (clean mesh).`);
+          }
+          renderAll();
+        } catch (err) {
+          hideLoadingModal();
+          showToast(`Error parsing ${file.name}: ${err.message}`);
+        }
+      }
+
+      // Mode 2: Sceneryobject Folder Scan
+      async function processSceneryFolderFiles(allFiles) {
+        const scoFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.sco'));
+        const o3dFiles = allFiles.filter(f => f.name.toLowerCase().endsWith('.o3d'));
+        const supportedTexExts = new Set(['png', 'bmp', 'jpg', 'jpeg', 'tga', 'dds', 'webp']);
+        const texFiles = allFiles.filter(f => {
+          const ext = f.name.split('.').pop().toLowerCase();
+          return supportedTexExts.has(ext);
+        });
+
+        if (scoFiles.length === 0 && o3dFiles.length > 0 && appState.scoGroups.length > 0) {
+          await attachO3dFilesToExistingScoGroups(o3dFiles);
+          if (texFiles.length > 0) await handleTextureFilesUpload(texFiles);
+          return;
+        }
+
+        if (scoFiles.length === 0) {
+          showToast('No .sco files found in the selected folder.');
+          return;
+        }
+
+        const o3dFileMap = new Map();
+        for (const f of o3dFiles) {
+          o3dFileMap.set(f.name.toLowerCase(), f);
+        }
+
+        logCommand(`Scanning Sceneryobject folder: found ${scoFiles.length} .sco, ${o3dFiles.length} .o3d, and ${texFiles.length} texture file(s).`);
+        scoFiles.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+        const newScoGroups = [];
+        const totalSteps = scoFiles.length + texFiles.length;
+        let stepCounter = 0;
+
+        showLoadingModal('Scanning Sceneryobject Folder...', 'Reading .sco files...', 0, Math.max(1, totalSteps));
+        await new Promise(r => setTimeout(r, 30));
+
+        for (let s = 0; s < scoFiles.length; s++) {
+          const scoFile = scoFiles[s];
+          stepCounter++;
+          showLoadingModal('Scanning Sceneryobject Folder...', `Parsing ${scoFile.name}`, stepCounter, Math.max(1, totalSteps));
+          if (s % 2 === 0) await new Promise(r => setTimeout(r, 10));
+
+          try {
+            const rawBuf = await scoFile.arrayBuffer();
+            const scoText = decodeAnyText(rawBuf);
+            const referencedMeshes = parseScoMeshLines(scoText);
+            const groupO3ds = [];
+
+            for (const relMesh of referencedMeshes) {
+              const cleanBase = relMesh.split(/[\\/]/).pop();
+              const matchingO3dFile = o3dFileMap.get(cleanBase.toLowerCase());
+              if (matchingO3dFile) {
+                try {
+                  const o3dBuf = await matchingO3dFile.arrayBuffer();
+                  groupO3ds.push(parseO3dBinary(o3dBuf, cleanBase));
+                } catch (err) {
+                  console.warn('Failed to parse o3d', cleanBase, err);
+                }
+              }
+            }
+
+            newScoGroups.push({
+              scoName: scoFile.name,
+              referencedMeshes,
+              o3dList: groupO3ds
+            });
+          } catch (err) {
+            console.warn('Skipped .sco', scoFile.name, err);
+          }
+        }
+
+        let texLoaded = 0;
+        for (let t = 0; t < texFiles.length; t++) {
+          const tf = texFiles[t];
+          stepCounter++;
+          showLoadingModal('Scanning Sceneryobject Textures...', `Scanning ${tf.name}`, stepCounter, Math.max(1, totalSteps));
+          if (texFiles.length <= 30 || t % 3 === 0) {
+            await new Promise(r => setTimeout(r, 10));
+          }
+          try {
+            const decoded = await decodeTextureFile(tf);
+            appState.textureFolderMap.set(tf.name.toLowerCase(), decoded);
+            texLoaded++;
+          } catch (err) {
+            console.warn('Skipped texture', tf.name, err);
+          }
+        }
+
+        hideLoadingModal();
+
+        appState.scoGroups = newScoGroups;
+        appState.activeScoIndex = 0;
+        appState.activeO3dIndex = 0;
+
+        const totalMatchedO3ds = newScoGroups.reduce((acc, g) => acc + g.o3dList.length, 0);
+        logCommand(`Loaded Sceneryobject: ${newScoGroups.length} .sco file(s) with ${totalMatchedO3ds} referenced .o3d mesh(es).`);
+        if (texLoaded > 0) {
+          logCommand(`Auto-scanned ${texLoaded} texture(s) across Sceneryobject folder for alpha channels.`);
+        }
+        showToast(
+          `Loaded ${newScoGroups.length} .sco file(s), ${totalMatchedO3ds} .o3d mesh(es)` +
+          (texLoaded > 0 ? `, and auto-scanned ${texLoaded} texture(s)!` : '')
+        );
+        renderAll();
+      }
+
+      async function attachO3dFilesToExistingScoGroups(o3dFiles) {
+        const o3dFileMap = new Map();
+        for (const f of o3dFiles) {
+          o3dFileMap.set(f.name.toLowerCase(), f);
+        }
+        let attached = 0;
+        for (const grp of appState.scoGroups) {
+          const list = [];
+          for (const relMesh of grp.referencedMeshes) {
+            const cleanBase = relMesh.split(/[\\/]/).pop();
+            const f = o3dFileMap.get(cleanBase.toLowerCase());
+            if (f) {
+              try {
+                const buf = await f.arrayBuffer();
+                list.push(parseO3dBinary(buf, cleanBase));
+                attached++;
+              } catch (e) {
+                console.warn(e);
+              }
+            }
+          }
+          if (list.length > 0) grp.o3dList = list;
+        }
+        showToast(`Linked ${attached} .o3d file(s) to loaded .sco files`);
+        renderAll();
+      }
+
+      inputScoFile.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length > 0) await processSceneryFolderFiles(files);
+      });
+
+      // Mode 3: Handle Folder Picker
+      inputModelFolder.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+
+        if (appState.mode === 'sco') {
+          await processSceneryFolderFiles(files);
+        } else {
+          const o3dFiles = files.filter(f => f.name.toLowerCase().endsWith('.o3d'));
+          await handleMultipleO3dFiles(o3dFiles);
+        }
+      });
+
+      async function handleMultipleO3dFiles(fileList) {
+        if (!fileList || fileList.length === 0) {
+          showToast('No .o3d files found in selected folder');
+          return;
+        }
+
+        fileList.sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+        const total = fileList.length;
+        showLoadingModal('Scanning Folder for .o3d Files...', 'Starting...', 0, total);
+        await new Promise(r => setTimeout(r, 30));
+
+        const list = [];
+        for (let i = 0; i < total; i++) {
+          const file = fileList[i];
+          showLoadingModal('Scanning Folder for .o3d Files...', file.name, i + 1, total);
+          if (total <= 20 || i % 2 === 0) await new Promise(r => setTimeout(r, 10));
+          try {
+            const buf = await file.arrayBuffer();
+            const relPath = file.webkitRelativePath 
+                      ? (file.webkitRelativePath.includes('/') ? file.webkitRelativePath.split('/').slice(1).join('/') : file.webkitRelativePath)
+                      : ('model/' + file.name);
+                    list.push(parseO3dBinary(buf, file.name, relPath));
+          } catch (err) {
+            console.warn('Skipped invalid .o3d', file.name, err);
+          }
+        }
+
+        hideLoadingModal();
+        if (list.length > 0) {
+          appState.o3dList = list;
+          appState.activeO3dIndex = 0;
+          showToast(`Loaded ${list.length} .o3d files for step-by-step inspection`);
+          logCommand(`Model Folder Scan: Batch loaded ${list.length} .o3d mesh(es) for inspection.`);
+          renderAll();
+        } else {
+          showToast('Failed to parse any valid .o3d files from folder');
+        }
+      }
+
+      // Texture Folder Upload with Live Progress Bar (for Mode 1 and Mode 3)
+      const inputTextureFolder = document.getElementById('inputTextureFolder');
+      const inputTextureFiles = document.getElementById('inputTextureFiles');
+
+      document.getElementById('btnPickFolder').addEventListener('click', () => inputTextureFolder.click());
+      document.getElementById('btnPickFiles').addEventListener('click', () => inputTextureFiles.click());
+
+      async function handleTextureFilesUpload(fileList) {
+        if (!fileList || fileList.length === 0) return;
+        const supported = new Set(['png', 'bmp', 'jpg', 'jpeg', 'tga', 'dds', 'webp']);
+        const candidateFiles = Array.from(fileList).filter(f => {
+          const ext = f.name.split('.').pop().toLowerCase();
+          return supported.has(ext);
+        });
+
+        if (candidateFiles.length === 0) {
+          showToast('No supported texture files (.png, .dds, .tga, .bmp, .jpg) found in selection');
+          return;
+        }
+
+        const total = candidateFiles.length;
+        showLoadingModal('Loading & Scanning Textures for Alpha Pixels...', 'Starting scan...', 0, total);
+        await new Promise(r => setTimeout(r, 30));
+
+        let loaded = 0;
+        for (let i = 0; i < total; i++) {
+          const file = candidateFiles[i];
+          showLoadingModal(
+            'Loading & Scanning Textures for Alpha Pixels...',
+            `Scanning ${file.name}`,
+            i + 1,
+            total
+          );
+          if (total <= 30 || i % 3 === 0) {
+            await new Promise(r => setTimeout(r, 10));
+          }
+          try {
+            const decoded = await decodeTextureFile(file);
+            appState.textureFolderMap.set(file.name.toLowerCase(), decoded);
+            loaded++;
+          } catch (err) {
+            console.warn('Skipped texture', file.name, err);
+          }
+        }
+
+        await new Promise(r => setTimeout(r, 150));
+        hideLoadingModal();
+
+        if (loaded > 0) {
+          appState.o3dList.forEach(mesh => {
+            mesh.materials.forEach(m => { m.customAlphaMode = null; });
+          });
+          appState.scoGroups.forEach(grp => {
+            grp.o3dList.forEach(mesh => {
+              mesh.materials.forEach(m => { m.customAlphaMode = null; });
+            });
+          });
+          showToast(`Scanned ${loaded} texture file(s) for alpha channels`);
+          logCommand(`Texture folder scan complete: ${loaded} texture(s) decoded and mapped with alpha channels.`);
+          renderAll();
+        } else {
+          showToast('Failed to decode selected texture files');
+        }
+      }
+
+      inputTextureFolder.addEventListener('change', (e) => handleTextureFilesUpload(e.target.files));
+      inputTextureFiles.addEventListener('change', (e) => handleTextureFilesUpload(e.target.files));
+
+      document.getElementById('selectAlphaMode').addEventListener('change', () => {
+        appState.o3dList.forEach(mesh => {
+          mesh.materials.forEach(m => { m.customAlphaMode = null; });
+        });
+        appState.scoGroups.forEach(grp => {
+          grp.o3dList.forEach(mesh => {
+            mesh.materials.forEach(m => { m.customAlphaMode = null; });
+          });
+        });
+        renderAll();
+      });
+      document.getElementById('selectMatlIndexMode').addEventListener('change', renderAll);
+
+      // Copy SCO Output
+      document.getElementById('btnCopySco').addEventListener('click', () => {
+        const textarea = document.getElementById('textareaScoOutput');
+        const text = textarea.value;
+        const done = () => {
+          const lbl = document.getElementById('labelCopySco');
+          lbl.textContent = 'Copied!';
+          setTimeout(() => { lbl.textContent = 'Copy to Clipboard'; }, 1800);
+          showToast('Copied [matl] blocks to clipboard');
+        logCommand(`Copied ${res.count} [matl] / [matl_alpha] blocks for ${document.getElementById('labelTableO3dName').textContent} to clipboard`);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(() => {
+            textarea.select();
+            document.execCommand('copy');
+            done();
+          });
+        } else {
+          textarea.select();
+          document.execCommand('copy');
+          done();
+        }
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+      setWorkflowMode('single');
+    });
+  </script>
+
+  <!-- Large Texture Preview Lightbox Modal -->
+  <div id="modalTexturePreview" class="fixed inset-0 z-[90] bg-slate-950/85 backdrop-blur-md hidden flex items-center justify-center p-3 sm:p-5 transition-opacity">
+    <div class="relative max-w-3xl w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3 bg-slate-925">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+            <i data-lucide="image" class="w-4 h-4"></i>
+          </div>
+          <div class="min-w-0">
+            <h3 id="modalTextureTitle" class="text-sm font-bold text-white font-mono truncate">texture.png</h3>
+            <p id="modalTextureMeta" class="text-[11px] font-mono text-slate-400">1024 × 1024 px • PNG • RGBA</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a id="btnModalDownloadTexture" href="#" download class="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" title="Save preview image">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span class="hidden sm:inline">Save Image</span>
+          </a>
+          <button id="btnModalCloseTexture" type="button" class="cursor-pointer w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition border border-slate-700" title="Close (Esc)">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Modal Image Viewport (Checkerboard Background for Alpha Transparency) -->
+      <div class="p-4 sm:p-6 bg-slate-950 flex-1 overflow-auto flex items-center justify-center custom-scrollbar">
+        <div class="relative max-w-full max-h-[58vh] rounded-xl overflow-hidden checkerboard border border-slate-800 shadow-2xl flex items-center justify-center">
+          <img id="modalTextureImg" src="" alt="Texture Preview" class="max-w-full max-h-[58vh] object-contain transition-all" />
+        </div>
+      </div>
+
+      <!-- Modal Footer (Alpha Stats & Material Mode) -->
+      <div class="px-5 py-3 border-t border-slate-800 bg-slate-925 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="modalTextureStatusBadge" class="px-2.5 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+            [matl_alpha] 1 (Cutout)
+          </span>
+          <span id="modalTextureAlphaStats" class="text-slate-300 font-mono text-[11px]">
+            Cutout (A=0): 12.4% • Semi-trans (0&lt;A&lt;255): 0.0% • Opaque: 87.6%
+          </span>
+        </div>
+
+        <div class="text-[11px] text-slate-400">
+          Press <kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700 font-mono text-[10px]">Esc</kbd> or click outside to close
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- Export Locked Explanation Modal -->
+  <div id="modalExportLocked" class="fixed inset-0 z-[95] bg-slate-950/85 backdrop-blur-md hidden flex items-center justify-center p-4 transition-opacity">
+    <div class="relative max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-5 flex flex-col gap-4 animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 shadow-lg shadow-amber-500/10">
+            <i data-lucide="lock" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 id="modalExportLockedTitle" class="text-sm font-bold text-white">Export Locked: No Duplicates Fixed Yet</h3>
+            <p class="text-xs text-slate-400">Export is only available after merging duplicate material slots</p>
+          </div>
+        </div>
+        <button id="btnCloseExportLockedX" type="button" class="cursor-pointer w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center transition border border-slate-700" title="Close (Esc)">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (Why & How to) -->
+      <div class="space-y-3 text-xs leading-relaxed">
+        <div class="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-slate-300">
+          <div class="font-semibold text-amber-200 mb-1 flex items-center gap-1.5">
+            <i data-lucide="help-circle" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>Why is this locked?</span>
+          </div>
+          <p id="modalExportLockedWhy">
+            There is no need to download an unfixed file. Exporting now would produce an exact byte-for-byte duplicate of your original <code id="modalExportLockedFileCode" class="font-mono text-amber-300">.o3d</code> file on disk without any optimizations applied.
+          </p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/25 text-slate-200">
+          <div class="font-semibold text-amber-300 mb-1 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-400"></i>
+            <span>How to unlock:</span>
+          </div>
+          <p id="modalExportLockedHow">
+            Click <strong>"Combine Duplicates"</strong> to merge duplicate material slots into unified slots. This reduces OMSI draw calls and shrinks file size. Once merged, this export button unlocks immediately!
+          </p>
+        </div>
+      </div>
+
+      <!-- Modal Actions -->
+      <div id="modalExportLockedActions" class="flex flex-col sm:flex-row items-center justify-end gap-2 pt-2 border-t border-slate-800">
+        <button id="btnModalCombineAndUnlock" type="button" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-md shadow-amber-950/40 transition cursor-pointer">
+          <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+          <span id="labelModalCombineAction">Combine Duplicates &amp; Unlock</span>
+        </button>
+        <button id="btnModalDismissLocked" type="button" class="w-full sm:w-auto px-3.5 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition cursor-pointer">
+          Dismiss
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>
