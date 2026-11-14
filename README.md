@@ -29,7 +29,7 @@ Extras shipped with the pipeline:
 
 * **Search, sort & command logfile** — filter by category (`Duplicates`, `Alpha 1 & 2`, `No Alpha`, `Missing`), search texture names, sort by slot index or alphabetically, and track every action in the live logfile.
 
-> **Note:** This tool is intended for scenery objects, not vehicle `.o3d` folders (`Vehicles\...\model`), which rely on intentional multi-slot materials for rain glass, lightmaps, `[matl_envmap]`, and `[matl_change]` scripts.
+> **Note:** This tool is intended for scenery objects, not vehicle `.o3d` folders (`Vehicles\...\model`), which rely on intentional multi-slot materials for rain glass, lightmaps, `[matl_envmap]`, and `[matl_change]` scripts. However, user may still load them, while being aware and not to combine certain materials that serves purposes.
 
 ## Why combine duplicate material slots?
 
